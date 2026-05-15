@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Concept D — Campaign Spotlight</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --indigo:    #4f46e5;
+        --indigo-lt: #eef2ff;
+        --indigo-md: #6366f1;
+        --ink:       #111827;
+        --muted:     #6b7280;
+        --line:      #e5e7eb;
+        --bg:        #f3f4f6;
+        --white:     #ffffff;
+        --good:  #16a34a; --good-bg: #dcfce7;
+        --warn:  #d97706; --warn-bg: #fef3c7;
+        --bad:   #dc2626; --bad-bg:  #fee2e2;
+        --sidebar-w: 264px;
+      }
+
+      body { font-family: "Inter","Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+
+      /* ── Shell ───────────────────────────── */
+      .shell { display: flex; height: 100vh; overflow: hidden; }
+
+      /* ── Sidebar ─────────────────────────── */
+      .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--white); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+      .sidebar-head { padding: 14px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+      .sidebar-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+      .logo-mark { width: 28px; height: 28px; border-radius: 7px; background: var(--indigo); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; }
+      .logo-text { font-size: 13px; font-weight: 700; }
+      .sidebar-search { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; font-size: 12px; font-family: inherit; outline: none; color: var(--ink); }
+      .sidebar-search:focus { border-color: var(--indigo); }
+      .sidebar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); padding: 10px 16px 4px; flex-shrink: 0; }
+      .sidebar-list { overflow-y: auto; flex: 1; }
+
+      .camp-item { padding: 9px 16px; cursor: pointer; border-bottom: 1px solid var(--bg); transition: background 0.1s; display: flex; flex-direction: column; gap: 2px; }
+      .camp-item:hover { background: var(--indigo-lt); }
+      .camp-item.active { background: var(--indigo-lt); border-left: 3px solid var(--indigo); padding-left: 13px; }
+      .camp-item-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .rag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+      .rag-dot.g { background: var(--good); }
+      .rag-dot.a { background: var(--warn); }
+      .rag-dot.r { background: var(--bad);  }
+      .rag-label { font-size: 10px; font-weight: 600; }
+      .rag-label.g { color: var(--good); }
+      .rag-label.a { color: var(--warn); }
+      .rag-label.r { color: var(--bad);  }
+
+      /* ── Main ────────────────────────────── */
+      .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-width: 0; }
+      .topbar { height: 54px; background: var(--white); border-bottom: 1px solid var(--line); padding: 0 24px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; position: sticky; top: 0; z-index: 10; }
+      .topbar-title { font-size: 15px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .topbar-badge { background: var(--indigo-lt); color: var(--indigo); border-radius: 6px; padding: 3px 10px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+      .topbar-date { margin-left: auto; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
+      .content { padding: 20px; flex: 1; }
+
+      /* ── View tabs ───────────────────────── */
+      .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+      .view-tab { padding: 6px 16px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; background: var(--white); border: 1px solid var(--line); color: var(--muted); transition: all 0.15s; }
+      .view-tab.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+
+      /* ── Cards ───────────────────────────── */
+      .card { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+      .card-hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+      .card-title { font-size: 13px; font-weight: 700; }
+      .card-hint { font-size: 11px; color: var(--muted); }
+
+      /* ── KPI tiles ───────────────────────── */
+      .kpi-row-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
+      .kpi-tile { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; }
+      .kpi-tile-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); margin-bottom: 3px; }
+      .kpi-tile-val { font-size: 19px; font-weight: 800; line-height: 1; }
+      .kpi-tile-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+      /* ── Chart grids ─────────────────────── */
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+      .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+
+      /* ── Charts ──────────────────────────── */
+      .chart-h200 { width: 100%; height: 200px; }
+      .chart-h180 { width: 100%; height: 180px; }
+      .chart-h160 { width: 100%; height: 160px; }
+
+      /* ── Efficiency stat row ─────────────── */
+      .eff-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+      .eff-cell { background: var(--bg); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+      .eff-cell-lbl { font-size: 11px; color: var(--muted); font-weight: 500; }
+      .eff-cell-val { font-size: 16px; font-weight: 800; }
+
+      /* ── Campaign detail header ──────────── */
+      .detail-header { background: var(--indigo); border-radius: 12px; padding: 18px 20px; color: #fff; margin-bottom: 14px; }
+      .detail-header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+      .detail-header-name { font-size: 17px; font-weight: 800; flex: 1; }
+      .detail-header-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 12px; }
+      .dkpi { text-align: center; padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.15); }
+      .dkpi:last-child { border-right: none; }
+      .dkpi-lbl { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+      .dkpi-val { font-size: 17px; font-weight: 800; }
+
+      /* ── Funnel ──────────────────────────── */
+      .funnel-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+      .funnel-lbl { font-size: 11px; font-weight: 600; width: 86px; text-align: right; flex-shrink: 0; }
+      .funnel-bar-bg { flex: 1; background: var(--line); border-radius: 5px; height: 22px; overflow: hidden; }
+      .funnel-bar-fill { height: 22px; border-radius: 5px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 600; color: #fff; min-width: 20px; }
+      .funnel-pct { font-size: 11px; color: var(--muted); width: 44px; flex-shrink: 0; }
+
+      /* ── Performance signals ─────────────── */
+      .signal-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--bg); border-radius: 7px; margin-bottom: 6px; }
+      .signal-lbl { font-size: 12px; font-weight: 600; }
+      .signal-right { display: flex; align-items: center; gap: 8px; }
+      .signal-val { font-size: 14px; font-weight: 700; }
+
+      /* ── Table ───────────────────────────── */
+      .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .data-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); padding: 0 8px 6px; text-align: left; border-bottom: 1px solid var(--line); }
+      .data-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); }
+      .data-table tr:last-child td { border-bottom: none; }
+
+      /* ── Region list ─────────────────────── */
+      .region-list { display: flex; flex-direction: column; gap: 8px; }
+      .region-row { }
+      .region-meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+      .region-name { font-weight: 600; }
+      .region-val  { color: var(--muted); }
+      .region-bar-bg { background: var(--line); border-radius: 3px; height: 5px; overflow: hidden; }
+      .region-bar-fill { height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--indigo), var(--indigo-md)); }
+
+      /* ── Empty state ─────────────────────── */
+      .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--muted); gap: 8px; }
+      .empty-icon { font-size: 36px; opacity: 0.4; }
+      .empty-text { font-size: 14px; }
+
+      /* ── Section divider ─────────────────── */
+      .sec-gap { margin-top: 14px; }
+
+      @media (max-width: 1200px) {
+        .kpi-row-6 { grid-template-columns: repeat(3, 1fr); }
+        .detail-header-kpis { grid-template-columns: repeat(3, 1fr); }
+        .grid-3 { grid-template-columns: 1fr 1fr; }
+        .eff-row { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+
+      <!-- ── Sidebar ── -->
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <div class="sidebar-logo">
+            <div class="logo-mark">P</div>
+            <span class="logo-text">Programmatic</span>
+          </div>
+          <input class="sidebar-search" placeholder="Search campaigns…" id="searchInput" />
+        </div>
+        <div class="sidebar-label">Campaigns</div>
+        <div class="sidebar-list" id="campList"></div>
+      </aside>
+
+      <!-- ── Main ── -->
+      <div class="main">
+        <div class="topbar">
+          <span class="topbar-title" id="topbarTitle">All Campaigns Overview</span>
+          <span class="topbar-badge" id="topbarBadge">Overview</span>
+          <span class="topbar-date" id="topbarDate">—</span>
+        </div>
+
+        <div class="content">
+          <div class="view-tabs">
+            <div class="view-tab active" id="tabOverview" onclick="showOverview()">Overview</div>
+            <div class="view-tab" id="tabSpotlight" onclick="showSpotlight()" style="display:none">Campaign Detail</div>
+          </div>
+
+          <!-- ── Overview panel ── -->
+          <div id="panelOverview">
+            <!-- 6 KPI tiles -->
+            <div class="kpi-row-6" id="overviewKpis"></div>
+
+            <!-- Efficiency quick-stats -->
+            <div class="eff-row" id="effRow"></div>
+
+            <!-- Row 1: Spend + Impressions -->
+            <div class="grid-2" style="margin-bottom:14px">
+              <div class="card">
+                <div class="card-hd"><span class="card-title">Spend Over Time</span><span class="card-hint">Daily</span></div>
+                <div id="overviewSpend" class="chart-h200"></div>
+              </div>
+              <div class="card">
+                <div class="card-hd"><span class="card-title">Impressions Over Time</span><span class="card-hint">Daily</span></div>
+                <div id="overviewImps" class="chart-h200"></div>
+              </div>
+            </div>
+
+            <!-- Row 2: Campaigns bar + Regions + Conversions -->
+            <div class="grid-3">
+              <div class="card">
+                <div class="card-hd"><span class="card-title">Top Campaigns by Spend</span><span class="card-hint">Top 8</span></div>
+                <div id="overviewCamps" class="chart-h200"></div>
+              </div>
+              <div class="card">
+                <div class="card-hd"><span class="card-title">Top Regions</span><span class="card-hint">By spend</span></div>
+                <div class="region-list" id="overviewRegions"></div>
+              </div>
+              <div class="card">
+                <div class="card-hd"><span class="card-title">Conversions Trend</span><span class="card-hint">Daily</span></div>
+                <div id="overviewConv" class="chart-h200"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Spotlight panel ── -->
+          <div id="panelSpotlight" style="display:none">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-icon">👈</div>
+              <div class="empty-text">Select a campaign from the sidebar</div>
+            </div>
+            <div id="spotlightContent" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    let allRows = [], allDates = [], globalKpis = {};
+
+    const fmt = {
+      $:   v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v),
+      n:   v => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v),
+      pct: (v, d=2) => v.toFixed(d) + '%',
+    };
+
+    function ragFn(val, hi, lo, hiGood = true) {
+      return hiGood ? (val >= hi ? 'g' : val >= lo ? 'a' : 'r') : (val <= hi ? 'g' : val <= lo ? 'a' : 'r');
+    }
+    const ragColors = { g: 'var(--good)', a: 'var(--warn)', r: 'var(--bad)' };
+
+    function showOverview() {
+      document.getElementById('panelOverview').style.display = '';
+      document.getElementById('panelSpotlight').style.display = 'none';
+      document.getElementById('tabOverview').classList.add('active');
+      document.getElementById('tabSpotlight').classList.remove('active');
+      document.getElementById('topbarTitle').textContent = 'All Campaigns Overview';
+      document.getElementById('topbarBadge').textContent = 'Overview';
+      document.querySelectorAll('.camp-item').forEach(el => el.classList.remove('active'));
+    }
+
+    function showSpotlight() {
+      document.getElementById('panelOverview').style.display = 'none';
+      document.getElementById('panelSpotlight').style.display = '';
+      document.getElementById('tabOverview').classList.remove('active');
+      document.getElementById('tabSpotlight').classList.add('active');
+    }
+
+    function makeBulletLine(rootId, data, field, color) {
+      const root = am5.Root.new(rootId);
+      root.setThemes([am5themes_Animated.new(root)]);
+      const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout }));
+      const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: 'day', count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+      }));
+      const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) }));
+      const s = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+        xAxis, yAxis, valueXField: 'date', valueYField: field,
+        stroke: am5.color(color), fill: am5.color(color),
+      }));
+      s.fills.template.setAll({ visible: true, fillOpacity: 0.1 });
+      s.strokes.template.setAll({ strokeWidth: 2 });
+      s.data.setAll(data);
+      chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+    }
+
+    function makeColumnChart(rootId, data, field, color) {
+      const root = am5.Root.new(rootId);
+      root.setThemes([am5themes_Animated.new(root)]);
+      const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout }));
+      const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: 'day', count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+      }));
+      const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) }));
+      const s = chart.series.push(am5xy.ColumnSeries.new(root, { xAxis, yAxis, valueXField: 'date', valueYField: field }));
+      s.columns.template.setAll({ fill: am5.color(color), stroke: am5.color(color), cornerRadiusTL: 3, cornerRadiusTR: 3 });
+      s.data.setAll(data);
+      chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+    }
+
+    function selectCampaign(name) {
+      document.getElementById('tabSpotlight').style.display = '';
+      showSpotlight();
+      document.getElementById('topbarTitle').textContent = name;
+      document.getElementById('topbarBadge').textContent = 'Campaign Detail';
+      document.querySelectorAll('.camp-item').forEach(el =>
+        el.classList.toggle('active', el.dataset.name === name));
+
+      const rows = allRows.filter(r => r.campaign_name === name);
+      const spend   = DashboardData.sum(rows, 'total_spend');
+      const imps    = DashboardData.sum(rows, 'imps_won');
+      const clicks  = DashboardData.sum(rows, 'clicks');
+      const convs   = DashboardData.sum(rows, 'total_conversions');
+      const starts  = DashboardData.sum(rows, 'audio_video_starts');
+      const c25     = DashboardData.sum(rows, 'complete_25');
+      const c50     = DashboardData.sum(rows, 'complete_50');
+      const c75     = DashboardData.sum(rows, 'complete_75');
+      const c100    = DashboardData.sum(rows, 'complete_100');
+      const ctr     = imps   ? (clicks / imps)   * 100 : 0;
+      const ecpm    = imps   ? (spend  / imps)   * 1000 : 0;
+      const ecpc    = clicks ? spend / clicks : 0;
+      const cvr     = clicks ? (convs  / clicks) * 100 : 0;
+      const comp    = starts ? (c100   / starts) * 100 : 0;
+
+      const topDmas    = DashboardData.topGroups(rows, 'dma_name',       'spend', 7);
+      const topRegions = DashboardData.topGroups(rows, 'primary_region', 'spend', 7);
+      const campDates  = DashboardData.getDateSeries(rows);
+      const tData      = campDates.map(d => ({ date: d.date.getTime(), spend: d.spend, ctr: d.ctr, conversions: d.conversions }));
+
+      const ctrRag = ragFn(ctr,  0.3,  0.1);
+      const cpmRag = ragFn(ecpm, 12,   18, false);
+      const cvrRag = ragFn(cvr,  2,    0.5);
+      const cpcRag = ragFn(ecpc, 5,    12, false);
+
+      // destroy old charts
+      ['spotC1','spotC2','spotC3'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+      });
+
+      document.getElementById('emptyState').style.display = 'none';
+      const sc = document.getElementById('spotlightContent');
+      sc.style.display = '';
+
+      const maxR = topRegions[0]?.spend || 1;
+      const maxD = topDmas[0]?.spend    || 1;
+
+      sc.innerHTML = `
+        <!-- Campaign header banner -->
+        <div class="detail-header">
+          <div class="detail-header-top">
+            <div class="detail-header-name">${name}</div>
+            <span style="background:rgba(255,255,255,0.15);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600">Campaign Detail</span>
+          </div>
+          <div class="detail-header-kpis">
+            <div class="dkpi"><div class="dkpi-lbl">Spend</div><div class="dkpi-val">${fmt.$(spend)}</div></div>
+            <div class="dkpi"><div class="dkpi-lbl">Impressions</div><div class="dkpi-val">${fmt.n(imps)}</div></div>
+            <div class="dkpi"><div class="dkpi-lbl">Clicks</div><div class="dkpi-val">${fmt.n(clicks)}</div></div>
+            <div class="dkpi"><div class="dkpi-lbl">CTR</div><div class="dkpi-val">${fmt.pct(ctr,3)}</div></div>
+            <div class="dkpi"><div class="dkpi-lbl">eCPM</div><div class="dkpi-val">${fmt.$(ecpm)}</div></div>
+            <div class="dkpi"><div class="dkpi-lbl">Completion</div><div class="dkpi-val">${fmt.pct(comp)}</div></div>
+          </div>
+        </div>
+
+        <!-- Row 1: Funnel + Signals + Video funnel -->
+        <div class="grid-3" style="margin-bottom:14px">
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Delivery Funnel</span></div>
+            ${[
+              { lbl: 'Impressions', val: imps,   pct: 100,   color: '#4f46e5' },
+              { lbl: 'Clicks',      val: clicks, pct: imps ? (clicks/imps)*100 : 0, color: '#6366f1' },
+              { lbl: 'Conversions', val: convs,  pct: imps ? (convs/imps)*100  : 0, color: '#818cf8' },
+            ].map(s => `
+              <div class="funnel-row">
+                <div class="funnel-lbl">${s.lbl}</div>
+                <div class="funnel-bar-bg">
+                  <div class="funnel-bar-fill" style="width:${Math.max(s.pct,0.5)}%;background:${s.color}">${fmt.n(s.val)}</div>
+                </div>
+                <div class="funnel-pct">${fmt.pct(s.pct,3)}</div>
+              </div>`).join('')}
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Performance Signals</span></div>
+            ${[
+              { lbl: 'CTR',  val: fmt.pct(ctr,3), r: ctrRag },
+              { lbl: 'eCPM', val: fmt.$(ecpm),     r: cpmRag },
+              { lbl: 'CVR',  val: fmt.pct(cvr),    r: cvrRag },
+              { lbl: 'eCPC', val: fmt.$(ecpc),      r: cpcRag },
+              { lbl: 'Conversions', val: fmt.n(convs), r: convs > 0 ? 'g' : 'r' },
+            ].map(s => `
+              <div class="signal-row">
+                <span class="signal-lbl">${s.lbl}</span>
+                <div class="signal-right">
+                  <span class="signal-val">${s.val}</span>
+                  <span style="width:10px;height:10px;border-radius:50%;display:inline-block;background:${ragColors[s.r]}"></span>
+                </div>
+              </div>`).join('')}
+          </div>
+
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Video Completion</span><span class="card-hint">${fmt.n(starts)} starts</span></div>
+            ${starts > 0 ? [
+              { lbl: '25%',       val: c25,  pct: (c25  / starts) * 100, color: '#6366f1' },
+              { lbl: '50%',       val: c50,  pct: (c50  / starts) * 100, color: '#818cf8' },
+              { lbl: '75%',       val: c75,  pct: (c75  / starts) * 100, color: '#a5b4fc' },
+              { lbl: 'Completed', val: c100, pct: (c100 / starts) * 100, color: '#4f46e5' },
+            ].map(s => `
+              <div class="funnel-row">
+                <div class="funnel-lbl">${s.lbl}</div>
+                <div class="funnel-bar-bg">
+                  <div class="funnel-bar-fill" style="width:${Math.max(s.pct,0.5)}%;background:${s.color}">${fmt.n(s.val)}</div>
+                </div>
+                <div class="funnel-pct">${fmt.pct(s.pct)}</div>
+              </div>`).join('') : '<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No video data for this campaign</div>'}
+          </div>
+        </div>
+
+        <!-- Row 2: Spend trend + CTR trend + Conversions -->
+        <div class="grid-3" style="margin-bottom:14px">
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Spend Trend</span></div>
+            <div id="spotC1" class="chart-h160"></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><span class="card-title">CTR Trend</span></div>
+            <div id="spotC2" class="chart-h160"></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Conversions Trend</span></div>
+            <div id="spotC3" class="chart-h160"></div>
+          </div>
+        </div>
+
+        <!-- Row 3: DMA table + Region breakdown -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Top DMAs</span><span class="card-hint">By spend</span></div>
+            <table class="data-table">
+              <thead><tr><th>DMA</th><th>Spend</th><th>Impressions</th><th>Clicks</th></tr></thead>
+              <tbody>${topDmas.map((d, i) => `
+                <tr>
+                  <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    <span style="color:var(--muted);font-size:10px;font-weight:700;margin-right:5px">${i+1}</span>${d.label || 'Unknown'}
+                  </td>
+                  <td>${fmt.$(d.spend)}</td>
+                  <td>${fmt.n(d.imps)}</td>
+                  <td>${fmt.n(d.clicks)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Region Breakdown</span><span class="card-hint">By spend</span></div>
+            <div class="region-list">${topRegions.map((r, i) => `
+              <div class="region-row">
+                <div class="region-meta">
+                  <span class="region-name">${i+1}. ${r.label || 'Unknown'}</span>
+                  <span class="region-val">${fmt.$(r.spend)}</span>
+                </div>
+                <div class="region-bar-bg">
+                  <div class="region-bar-fill" style="width:${Math.round((r.spend/maxR)*100)}%"></div>
+                </div>
+              </div>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Render the 3 trend charts for campaign
+      makeColumnChart('spotC1', tData, 'spend',       0x6366f1);
+      makeBulletLine ('spotC2', tData, 'ctr',         0x4f46e5);
+      makeColumnChart('spotC3', tData, 'conversions', 0x818cf8);
+    }
+
+    (async () => {
+      allRows     = await DashboardData.loadRows();
+      globalKpis  = DashboardData.getKpis(allRows);
+      allDates    = DashboardData.getDateSeries(allRows);
+
+      // date label
+      const dates = allRows.map(r => r.report_date).filter(Boolean).sort();
+      if (dates.length) {
+        const d = new Date(dates[dates.length - 1]);
+        document.getElementById('topbarDate').textContent =
+          'Period ending ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      // ── Sidebar campaign list
+      const topCamps = DashboardData.topGroups(allRows, 'campaign_name', 'spend', 20);
+      function renderList(filter = '') {
+        const filtered = topCamps.filter(c => c.label.toLowerCase().includes(filter.toLowerCase()));
+        document.getElementById('campList').innerHTML = filtered.map(c => {
+          const ctr = c.imps ? (c.clicks / c.imps) * 100 : 0;
+          const rc = ctr > 0.3 ? 'g' : ctr > 0.1 ? 'a' : 'r';
+          const rt = { g: 'On Track', a: 'Watch', r: 'Review' }[rc];
+          return `
+            <div class="camp-item" data-name="${c.label}" onclick="selectCampaign('${c.label.replace(/'/g,"\\'")}')">
+              <div class="camp-item-name">${c.label}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:11px;color:var(--muted)">${fmt.$(c.spend)}</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <div class="rag-dot ${rc}"></div>
+                  <span class="rag-label ${rc}">${rt}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+      renderList();
+      document.getElementById('searchInput').addEventListener('input', e => renderList(e.target.value));
+
+      // ── Overview: 6 KPI tiles
+      const eCpc = globalKpis.clicks ? globalKpis.spend / globalKpis.clicks : 0;
+      document.getElementById('overviewKpis').innerHTML = [
+        { lbl: 'Total Spend',   val: fmt.$(globalKpis.spend),          sub: 'All campaigns' },
+        { lbl: 'Impressions',   val: fmt.n(globalKpis.imps),           sub: 'Won' },
+        { lbl: 'Clicks',        val: fmt.n(globalKpis.clicks),         sub: '' },
+        { lbl: 'Conversions',   val: fmt.n(globalKpis.conversions),    sub: 'Total' },
+        { lbl: 'CTR',           val: fmt.pct(globalKpis.ctr, 3),       sub: 'Blended' },
+        { lbl: 'eCPM',          val: fmt.$(globalKpis.cpm),            sub: 'Effective' },
+      ].map(k => `
+        <div class="kpi-tile">
+          <div class="kpi-tile-lbl">${k.lbl}</div>
+          <div class="kpi-tile-val">${k.val}</div>
+          <div class="kpi-tile-sub">${k.sub}</div>
+        </div>`).join('');
+
+      // ── Efficiency quick-stat row
+      document.getElementById('effRow').innerHTML = [
+        { lbl: 'eCPC (Cost/Click)',    val: fmt.$(eCpc) },
+        { lbl: 'eCPA (Cost/Conv.)',    val: globalKpis.conversions ? fmt.$(globalKpis.spend / globalKpis.conversions) : '—' },
+        { lbl: 'CTR',                  val: fmt.pct(globalKpis.ctr, 3) },
+        { lbl: 'Video Completion',     val: fmt.pct(globalKpis.completionRate) },
+      ].map(e => `
+        <div class="eff-cell">
+          <span class="eff-cell-lbl">${e.lbl}</span>
+          <span class="eff-cell-val">${e.val}</span>
+        </div>`).join('');
+
+      // ── Top Regions list
+      const topRegions = DashboardData.topGroups(allRows, 'primary_region', 'spend', 8);
+      const maxR = topRegions[0]?.spend || 1;
+      document.getElementById('overviewRegions').innerHTML = topRegions.map((r, i) => `
+        <div class="region-row">
+          <div class="region-meta">
+            <span class="region-name">${i+1}. ${r.label || 'Unknown'}</span>
+            <span class="region-val">${fmt.$(r.spend)}</span>
+          </div>
+          <div class="region-bar-bg">
+            <div class="region-bar-fill" style="width:${Math.round((r.spend/maxR)*100)}%"></div>
+          </div>
+        </div>`).join('');
+
+      // ── Overview charts
+      const tData = allDates.map(d => ({ date: d.date.getTime(), spend: d.spend, imps: d.imps, conversions: d.conversions }));
+      makeBulletLine ('overviewSpend', tData, 'spend',       0x4f46e5);
+      makeBulletLine ('overviewImps',  tData, 'imps',        0x6366f1);
+      makeColumnChart('overviewConv',  tData, 'conversions', 0x818cf8);
+
+      // ── Top campaigns horizontal bar
+      (() => {
+        const top8 = DashboardData.topGroups(allRows, 'campaign_name', 'spend', 8).reverse();
+        const root = am5.Root.new('overviewCamps');
+        root.setThemes([am5themes_Animated.new(root)]);
+        const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout }));
+        const yAxis = chart.yAxes.push(am5xy.CategoryAxis.new(root, {
+          renderer: am5xy.AxisRendererY.new(root, { minGridDistance: 20 }),
+          categoryField: 'label',
+        }));
+        const xAxis = chart.xAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererX.new(root, {}) }));
+        const s = chart.series.push(am5xy.ColumnSeries.new(root, {
+          xAxis, yAxis, valueXField: 'spend', categoryYField: 'label',
+        }));
+        s.columns.template.setAll({ fill: am5.color(0x6366f1), stroke: am5.color(0x4f46e5), cornerRadiusTR: 4, cornerRadiusBR: 4, height: am5.percent(60) });
+        yAxis.data.setAll(top8);
+        s.data.setAll(top8);
+        chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+      })();
+
+    })().catch(e => console.error(e));
+    </script>
+  </body>
+</html>

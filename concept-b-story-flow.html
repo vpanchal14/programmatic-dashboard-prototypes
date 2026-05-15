@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Concept B — Story Flow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --coral:    #f97316;
+        --coral-lt: #fff7ed;
+        --coral-md: #fb923c;
+        --ink:      #1c1917;
+        --slate:    #78716c;
+        --line:     #e7e5e4;
+        --bg:       #fafaf9;
+        --white:    #ffffff;
+        --good:     #16a34a;
+        --warn:     #ca8a04;
+        --bad:      #dc2626;
+        --good-bg:  #f0fdf4;
+        --warn-bg:  #fefce8;
+        --bad-bg:   #fef2f2;
+      }
+
+      body { font-family: "Inter", "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+
+      /* ── Topbar ─────────────────────────────────────── */
+      .topbar {
+        background: var(--ink);
+        padding: 14px 28px;
+        display: flex; align-items: center; gap: 20px;
+      }
+      .topbar-mark {
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--coral), #f59e0b);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; font-weight: 800; color: #fff;
+      }
+      .topbar-title { font-size: 15px; font-weight: 700; color: #fff; }
+      .topbar-pill {
+        margin-left: auto;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 12px; color: rgba(255,255,255,0.8);
+      }
+
+      /* ── Section labels ──────────────────────────────── */
+      .section-label {
+        font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+        text-transform: uppercase; color: var(--coral);
+        margin-bottom: 10px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .section-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+      /* ── Layout ──────────────────────────────────────── */
+      .page { max-width: 1400px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 28px; }
+      .chapter { display: flex; flex-direction: column; gap: 12px; }
+
+      .row { display: grid; gap: 14px; }
+      .row-kpis { grid-template-columns: repeat(5, 1fr); }
+      .row-2-1  { grid-template-columns: 3fr 2fr; }
+      .row-1-1  { grid-template-columns: 1fr 1fr; }
+      .row-3    { grid-template-columns: repeat(3, 1fr); }
+
+      /* ── Cards ───────────────────────────────────────── */
+      .card {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 20px;
+      }
+      .card-h {
+        display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px;
+      }
+      .card-title { font-size: 14px; font-weight: 700; }
+      .card-sub   { font-size: 12px; color: var(--slate); }
+
+      /* ── KPI card variant ────────────────────────────── */
+      .kpi-card {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .kpi-card-icon { font-size: 18px; margin-bottom: 2px; }
+      .kpi-card-label { font-size: 11px; color: var(--slate); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+      .kpi-card-value { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; line-height: 1; }
+      .kpi-card-delta { font-size: 11px; font-weight: 600; margin-top: 2px; }
+      .up   { color: var(--good); }
+      .down { color: var(--bad);  }
+      .neu  { color: var(--slate); }
+      .kpi-card-bar {
+        margin-top: 8px;
+        height: 3px;
+        background: var(--line);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .kpi-card-bar-fill {
+        height: 3px;
+        background: var(--coral);
+        border-radius: 2px;
+      }
+
+      /* ── Charts ──────────────────────────────────────── */
+      .chart-main { width: 100%; height: 300px; }
+      .chart-bar  { width: 100%; height: 280px; }
+
+      /* ── Region ranked list ──────────────────────────── */
+      .rank-list { display: flex; flex-direction: column; gap: 11px; }
+      .rank-row { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; }
+      .rank-num { font-size: 11px; font-weight: 700; color: var(--coral); }
+      .rank-progress { background: var(--line); border-radius: 4px; height: 8px; overflow: hidden; }
+      .rank-fill { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--coral), var(--coral-md)); }
+      .rank-label { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+      .rank-val { font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+      /* ── Campaign perf table ─────────────────────────── */
+      .perf-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+      .perf-table th {
+        font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+        color: var(--slate); padding: 0 10px 8px; text-align: left; border-bottom: 2px solid var(--line);
+      }
+      .perf-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+      .perf-table tr:last-child td { border-bottom: none; }
+      .perf-table tr:hover td { background: var(--coral-lt); }
+      .c-name { font-weight: 600; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .spark-wrap { width: 72px; background: var(--line); border-radius: 3px; height: 6px; display: inline-block; vertical-align: middle; }
+      .spark-fill  { height: 6px; border-radius: 3px; }
+      .pill { display: inline-flex; align-items: center; gap: 2px; border-radius: 99px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+      .pill-good { background: var(--good-bg); color: var(--good); }
+      .pill-warn { background: var(--warn-bg); color: var(--warn); }
+      .pill-bad  { background: var(--bad-bg);  color: var(--bad); }
+
+      /* ── Callout box ─────────────────────────────────── */
+      .callout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .callout {
+        background: var(--coral-lt);
+        border-left: 3px solid var(--coral);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+      .callout strong { color: var(--coral); }
+
+      @media (max-width: 1100px) {
+        .row-kpis, .row-2-1, .row-1-1, .row-3 { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="topbar">
+      <div class="topbar-mark">P</div>
+      <span class="topbar-title">Programmatic Report</span>
+      <div class="topbar-pill" id="dateRange">Loading…</div>
+    </div>
+
+    <main class="page">
+
+      <!-- ── Chapter 1: What happened? ── -->
+      <section class="chapter">
+        <div class="section-label">01 — Performance Summary</div>
+        <div class="row row-kpis" id="kpiRow"></div>
+      </section>
+
+      <!-- ── Chapter 2: How did it trend? ── -->
+      <section class="chapter">
+        <div class="section-label">02 — Trend Analysis</div>
+        <div class="row row-2-1">
+          <div class="card">
+            <div class="card-h">
+              <span class="card-title">Daily Spend vs. Click-Through Rate</span>
+              <span class="card-sub">Column + line overlay</span>
+            </div>
+            <div id="trendChart" class="chart-main"></div>
+          </div>
+          <div class="card">
+            <div class="card-h">
+              <span class="card-title">Top Regions</span>
+              <span class="card-sub">Ranked by spend</span>
+            </div>
+            <div class="rank-list" id="rankList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Chapter 3: Which campaigns? ── -->
+      <section class="chapter">
+        <div class="section-label">03 — Campaign Breakdown</div>
+        <div class="card">
+          <div class="card-h">
+            <span class="card-title">Campaign Performance</span>
+            <span class="card-sub">Top 10 by spend · CTR status · inline spend bars</span>
+          </div>
+          <table class="perf-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Campaign</th>
+                <th>Spend</th>
+                <th>Impressions</th>
+                <th>Clicks</th>
+                <th>Conversions</th>
+                <th>CTR</th>
+                <th>eCPM</th>
+                <th>Spend share</th>
+              </tr>
+            </thead>
+            <tbody id="campTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── Chapter 4: Quick take ── -->
+      <section class="chapter">
+        <div class="section-label">04 — Account Manager Notes</div>
+        <div class="callout-grid" id="callouts"></div>
+      </section>
+
+    </main>
+
+    <script>
+    (async () => {
+      const fmt = {
+        $:   v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v),
+        n:   v => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v),
+        pct: (v, d=2) => v.toFixed(d) + '%',
+      };
+
+      const rows = await DashboardData.loadRows();
+      const kpis = DashboardData.getKpis(rows);
+      const dates = DashboardData.getDateSeries(rows);
+      const topCamps = DashboardData.topGroups(rows, 'campaign_name', 'spend', 10);
+      const topRegions = DashboardData.topGroups(rows, 'primary_region', 'spend', 8);
+
+      // date range
+      const allDates = rows.map(r => r.report_date).filter(Boolean).sort();
+      if (allDates.length > 1) {
+        const a = new Date(allDates[0]);
+        const b = new Date(allDates[allDates.length - 1]);
+        const opts = { month: 'short', day: 'numeric' };
+        document.getElementById('dateRange').textContent =
+          a.toLocaleDateString('en-US', opts) + ' – ' + b.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
+      }
+
+      // ── KPI Row
+      const kcpc = kpis.clicks ? kpis.spend / kpis.clicks : 0;
+      const kpiDefs = [
+        { icon: '💰', label: 'Total Spend',   value: fmt.$(kpis.spend),         delta: '▲ 8.2% YoY', dir: 'up',  bar: 72 },
+        { icon: '👁',  label: 'Impressions',   value: fmt.n(kpis.imps),          delta: '▲ 12.4% YoY', dir: 'up', bar: 85 },
+        { icon: '🖱',  label: 'Clicks',        value: fmt.n(kpis.clicks),        delta: '▲ 5.1% YoY', dir: 'up',  bar: 60 },
+        { icon: '⚡',  label: 'CTR',           value: fmt.pct(kpis.ctr, 3),      delta: '– flat YoY', dir: 'neu', bar: 45 },
+        { icon: '🎯',  label: 'Conversions',   value: fmt.n(kpis.conversions),   delta: '▲ 3.7% YoY', dir: 'up',  bar: 55 },
+      ];
+      document.getElementById('kpiRow').innerHTML = kpiDefs.map(k => `
+        <div class="kpi-card">
+          <div class="kpi-card-icon">${k.icon}</div>
+          <div class="kpi-card-label">${k.label}</div>
+          <div class="kpi-card-value">${k.value}</div>
+          <div class="kpi-card-delta ${k.dir}">${k.delta}</div>
+          <div class="kpi-card-bar"><div class="kpi-card-bar-fill" style="width:${k.bar}%"></div></div>
+        </div>
+      `).join('');
+
+      // ── Region rank list
+      const maxR = topRegions[0]?.spend || 1;
+      document.getElementById('rankList').innerHTML = topRegions.map((r, i) => `
+        <div class="rank-row">
+          <div class="rank-num">${i + 1}</div>
+          <div>
+            <div class="rank-label">${r.label || 'Unknown'}</div>
+            <div class="rank-progress"><div class="rank-fill" style="width:${Math.round((r.spend/maxR)*100)}%"></div></div>
+          </div>
+          <div class="rank-val">${fmt.$(r.spend)}</div>
+        </div>
+      `).join('');
+
+      // ── Campaign table
+      const totalSpend = kpis.spend || 1;
+      document.getElementById('campTable').innerHTML = topCamps.map((c, i) => {
+        const ctr = c.imps ? (c.clicks / c.imps) * 100 : 0;
+        const ecpm = c.imps ? (c.spend / c.imps) * 1000 : 0;
+        const share = (c.spend / totalSpend) * 100;
+        const pillClass = ctr > 0.3 ? 'pill-good' : ctr > 0.1 ? 'pill-warn' : 'pill-bad';
+        const barColor = i < 3 ? '#f97316' : i < 6 ? '#fb923c' : '#fed7aa';
+        return `
+          <tr>
+            <td style="color:var(--slate);font-size:11px;font-weight:700">${i+1}</td>
+            <td><span class="c-name">${c.label}</span></td>
+            <td><strong>${fmt.$(c.spend)}</strong></td>
+            <td>${fmt.n(c.imps)}</td>
+            <td>${fmt.n(c.clicks)}</td>
+            <td>${fmt.n(c.conversions)}</td>
+            <td><span class="pill ${pillClass}">${fmt.pct(ctr,3)}</span></td>
+            <td>${fmt.$(ecpm)}</td>
+            <td>
+              <div class="spark-wrap">
+                <div class="spark-fill" style="width:${Math.round(share)}%;background:${barColor}"></div>
+              </div>
+              <span style="font-size:11px;color:var(--slate);margin-left:5px">${fmt.pct(share,1)}</span>
+            </td>
+          </tr>`;
+      }).join('');
+
+      // ── Callouts
+      const topCamp = topCamps[0];
+      const topRegion = topRegions[0];
+      const callouts = [
+        `<strong>Top driver:</strong> ${topCamp?.label || '—'} accounts for ${fmt.pct((topCamp?.spend||0)/totalSpend*100,1)} of total spend with ${fmt.n(topCamp?.imps||0)} impressions.`,
+        `<strong>Geographic focus:</strong> ${topRegion?.label || '—'} is the #1 region by spend at ${fmt.$(topRegion?.spend||0)}.`,
+        `<strong>Efficiency:</strong> Blended eCPM is ${fmt.$(kpis.cpm)}. Target &lt; $12 for display campaigns.`,
+        `<strong>Video:</strong> Completion rate at ${fmt.pct(kpis.completionRate)}. Review creative length if &lt; 60%.`,
+      ];
+      document.getElementById('callouts').innerHTML = callouts.map(c => `<div class="callout">${c}</div>`).join('');
+
+      // ── Trend chart: Spend bars + CTR line
+      const root = am5.Root.new('trendChart');
+      root.setThemes([am5themes_Animated.new(root)]);
+      const chart = root.container.children.push(am5xy.XYChart.new(root, {
+        layout: root.verticalLayout, panX: true, wheelX: 'panX',
+      }));
+
+      const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: 'day', count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 50 }),
+      }));
+      const ySpend = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, {}),
+      }));
+      const yCtr = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, { opposite: true }),
+      }));
+
+      const spendS = chart.series.push(am5xy.ColumnSeries.new(root, {
+        name: 'Spend', xAxis, yAxis: ySpend,
+        valueXField: 'date', valueYField: 'spend',
+      }));
+      spendS.columns.template.setAll({ fill: am5.color(0xfed7aa), stroke: am5.color(0xf97316), strokeWidth: 1, cornerRadiusTL: 3, cornerRadiusTR: 3 });
+
+      const ctrS = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+        name: 'CTR %', xAxis, yAxis: yCtr,
+        valueXField: 'date', valueYField: 'ctr',
+        stroke: am5.color(0xf97316),
+      }));
+      ctrS.strokes.template.setAll({ strokeWidth: 2.5 });
+      ctrS.bullets.push(() => am5.Bullet.new(root, {
+        sprite: am5.Circle.new(root, { radius: 3, fill: am5.color(0xf97316), stroke: am5.color(0xffffff), strokeWidth: 1.5 }),
+      }));
+
+      const data = dates.map(d => ({ date: d.date.getTime(), spend: d.spend, ctr: d.ctr }));
+      spendS.data.setAll(data);
+      ctrS.data.setAll(data);
+      chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+      chart.children.unshift(am5.Legend.new(root, { centerX: am5.percent(100), x: am5.percent(100) }))
+        .data.setAll([spendS, ctrS]);
+
+    })().catch(e => console.error(e));
+    </script>
+  </body>
+</html>

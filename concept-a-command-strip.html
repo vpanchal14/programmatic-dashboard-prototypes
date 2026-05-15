@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Concept A — Command Strip</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --teal: #0d9488;
+        --teal-light: #ccfbf1;
+        --teal-mid: #14b8a6;
+        --ink: #0f1923;
+        --slate: #64748b;
+        --line: #e4e9f0;
+        --bg: #f7f9fc;
+        --white: #ffffff;
+        --good: #059669;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --good-bg: #ecfdf5;
+        --warn-bg: #fffbeb;
+        --bad-bg: #fef2f2;
+      }
+
+      body { font-family: "Inter", "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+      /* ── Header ─────────────────────────────────────── */
+      .header {
+        background: var(--white);
+        border-bottom: 1px solid var(--line);
+        padding: 0 28px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 56px;
+      }
+      .header-logo {
+        width: 8px; height: 28px;
+        background: linear-gradient(180deg, var(--teal), #0891b2);
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+      .header-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+      .header-sub { font-size: 12px; color: var(--slate); margin-left: 4px; }
+      .header-date {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--slate);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+
+      /* ── KPI Strip ───────────────────────────────────── */
+      .kpi-strip {
+        background: var(--white);
+        border-bottom: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+      }
+      .kpi-cell {
+        padding: 16px 20px;
+        border-right: 1px solid var(--line);
+        position: relative;
+      }
+      .kpi-cell:last-child { border-right: none; }
+      .kpi-cell-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--slate);
+        margin-bottom: 6px;
+      }
+      .kpi-cell-value {
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.5px;
+      }
+      .kpi-cell-delta {
+        margin-top: 5px;
+        font-size: 11px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .delta-up { color: var(--good); }
+      .delta-down { color: var(--bad); }
+      .delta-neu { color: var(--slate); }
+      .kpi-cell-accent {
+        position: absolute;
+        bottom: 0; left: 20px; right: 20px;
+        height: 2px;
+        background: var(--teal);
+        border-radius: 2px 2px 0 0;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .kpi-cell:hover .kpi-cell-accent { opacity: 1; }
+
+      /* ── Body ────────────────────────────────────────── */
+      .body { max-width: 1440px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+      /* ── Row ─────────────────────────────────────────── */
+      .row { display: grid; gap: 16px; }
+      .row-2-1 { grid-template-columns: 2fr 1fr; }
+      .row-3   { grid-template-columns: repeat(3, 1fr); }
+      .row-1-1 { grid-template-columns: 1fr 1fr; }
+
+      /* ── Card ────────────────────────────────────────── */
+      .card {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .card-title { font-size: 13px; font-weight: 700; letter-spacing: -0.2px; }
+      .card-hint { font-size: 11px; color: var(--slate); }
+
+      /* ── Charts ──────────────────────────────────────── */
+      .chart-area { width: 100%; height: 280px; }
+      .chart-sm   { width: 100%; height: 220px; }
+
+      /* ── Campaign table ──────────────────────────────── */
+      .camp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+      .camp-table th {
+        font-size: 11px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.4px; color: var(--slate);
+        padding: 0 8px 8px; text-align: left; border-bottom: 1px solid var(--line);
+      }
+      .camp-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+      .camp-table tr:last-child td { border-bottom: none; }
+      .camp-name { font-weight: 600; font-size: 12px; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .bar-wrap { background: var(--line); border-radius: 4px; height: 5px; width: 80px; }
+      .bar-fill  { background: var(--teal); height: 5px; border-radius: 4px; }
+
+      /* ── Region list ─────────────────────────────────── */
+      .region-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+      .region-row { display: flex; flex-direction: column; gap: 4px; }
+      .region-meta { display: flex; justify-content: space-between; font-size: 12px; }
+      .region-name { font-weight: 600; }
+      .region-val  { color: var(--slate); }
+      .region-bar-bg { background: var(--line); border-radius: 4px; height: 6px; }
+      .region-bar-fill { background: linear-gradient(90deg, var(--teal), var(--teal-mid)); height: 6px; border-radius: 4px; transition: width 0.6s ease; }
+
+      /* ── Funnel ──────────────────────────────────────── */
+      .funnel { display: flex; flex-direction: column; gap: 10px; }
+      .funnel-step {
+        display: flex; align-items: center; gap: 12px;
+      }
+      .funnel-bar-wrap { flex: 1; background: var(--line); border-radius: 6px; height: 28px; position: relative; overflow: hidden; }
+      .funnel-bar-fill { height: 28px; border-radius: 6px; display: flex; align-items: center; padding-left: 10px; font-size: 11px; font-weight: 600; color: #fff; transition: width 0.7s ease; }
+      .funnel-label { font-size: 12px; font-weight: 600; width: 100px; flex-shrink: 0; text-align: right; }
+      .funnel-pct { font-size: 11px; color: var(--slate); width: 44px; text-align: right; }
+
+      /* ── Stat blocks ─────────────────────────────────── */
+      .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-block {
+        background: var(--bg);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .stat-block-label { font-size: 11px; color: var(--slate); margin-bottom: 4px; }
+      .stat-block-value { font-size: 18px; font-weight: 700; }
+
+      /* ── Pills ───────────────────────────────────────── */
+      .pill { display: inline-flex; align-items: center; gap: 3px; border-radius: 99px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+      .pill-good { background: var(--good-bg); color: var(--good); }
+      .pill-warn { background: var(--warn-bg); color: var(--warn); }
+      .pill-bad  { background: var(--bad-bg);  color: var(--bad); }
+      .pill-teal { background: var(--teal-light); color: var(--teal); }
+
+      @media (max-width: 1100px) {
+        .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+        .row-2-1, .row-3, .row-1-1 { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo"></div>
+      <span class="header-title">Programmatic Overview</span>
+      <span class="header-sub">Account Manager Dashboard</span>
+      <div class="header-date" id="headerDate">Dec 2025</div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip" id="kpiStrip">
+      <!-- injected by JS -->
+    </div>
+
+    <!-- Body -->
+    <main class="body">
+
+      <!-- Row 1: area chart + funnel -->
+      <div class="row row-2-1">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Spend &amp; Impressions Over Time</span>
+            <span class="card-hint">Daily · All campaigns</span>
+          </div>
+          <div id="areaChart" class="chart-area"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Delivery Funnel</span>
+            <span class="card-hint">Imps → Clicks → Conv.</span>
+          </div>
+          <div class="funnel" id="funnel"></div>
+        </div>
+      </div>
+
+      <!-- Row 2: campaigns + regions + stats -->
+      <div class="row row-2-1">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Top Campaigns by Spend</span>
+            <span class="card-hint">Ranked · Inline CTR bar</span>
+          </div>
+          <table class="camp-table">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Spend</th>
+                <th>Imps</th>
+                <th>Clicks</th>
+                <th>CTR</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="campRows"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Top Regions</span>
+            <span class="card-hint">By spend</span>
+          </div>
+          <ul class="region-list" id="regionList"></ul>
+        </div>
+      </div>
+
+      <!-- Row 3: CPM, CTR, Completion, CPA mini-stat grid -->
+      <div class="row row-1-1">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Efficiency Metrics</span>
+            <span class="card-hint">Blended across all campaigns</span>
+          </div>
+          <div class="stat-grid" id="efficiencyStats"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Video Completion Funnel</span>
+            <span class="card-hint">% of starts that reached each milestone</span>
+          </div>
+          <div id="videoFunnel" class="funnel"></div>
+        </div>
+      </div>
+
+    </main>
+
+    <script>
+    (async () => {
+      const fmt = {
+        $: v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v),
+        n: v => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v),
+        pct: (v, d=2) => v.toFixed(d) + '%',
+      };
+
+      const rows = await DashboardData.loadRows();
+      const kpis = DashboardData.getKpis(rows);
+      const dates = DashboardData.getDateSeries(rows);
+
+      // ── Date label
+      const allDates = rows.map(r => r.report_date).filter(Boolean).sort();
+      if (allDates.length) {
+        const d = new Date(allDates[allDates.length - 1]);
+        document.getElementById('headerDate').textContent =
+          d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      }
+
+      // ── KPI Strip
+      const kpiDefs = [
+        { label: 'Total Spend',   value: fmt.$(kpis.spend),             delta: '+8.2%', dir: 'up' },
+        { label: 'Impressions',   value: fmt.n(kpis.imps),              delta: '+12.4%', dir: 'up' },
+        { label: 'Clicks',        value: fmt.n(kpis.clicks),            delta: '+5.1%', dir: 'up' },
+        { label: 'Conversions',   value: fmt.n(kpis.conversions),       delta: '+3.7%', dir: 'up' },
+        { label: 'CTR',           value: fmt.pct(kpis.ctr),             delta: '-0.04pp', dir: 'neu' },
+        { label: 'eCPM',          value: fmt.$(kpis.cpm),               delta: '-1.2%', dir: 'down' },
+      ];
+      document.getElementById('kpiStrip').innerHTML = kpiDefs.map(k => `
+        <div class="kpi-cell">
+          <div class="kpi-cell-label">${k.label}</div>
+          <div class="kpi-cell-value">${k.value}</div>
+          <div class="kpi-cell-delta delta-${k.dir}">
+            ${k.dir === 'up' ? '▲' : k.dir === 'down' ? '▼' : '–'} ${k.delta} vs prior period
+          </div>
+          <div class="kpi-cell-accent"></div>
+        </div>
+      `).join('');
+
+      // ── Delivery Funnel
+      const funnelSteps = [
+        { label: 'Impressions', val: kpis.imps,        color: '#0d9488', pct: 100 },
+        { label: 'Clicks',      val: kpis.clicks,      color: '#0891b2', pct: kpis.imps ? (kpis.clicks / kpis.imps) * 100 : 0 },
+        { label: 'Conversions', val: kpis.conversions, color: '#7c3aed', pct: kpis.imps ? (kpis.conversions / kpis.imps) * 100 : 0 },
+      ];
+      document.getElementById('funnel').innerHTML = funnelSteps.map(s => `
+        <div class="funnel-step">
+          <div class="funnel-label">${s.label}</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar-fill" style="width:${Math.min(s.pct, 100)}%;background:${s.color}">
+              ${fmt.n(s.val)}
+            </div>
+          </div>
+          <div class="funnel-pct">${fmt.pct(s.pct, 3)}</div>
+        </div>
+      `).join('');
+
+      // ── Top Campaigns table
+      const topCamps = DashboardData.topGroups(rows, 'campaign_name', 'spend', 8);
+      const maxSpend = topCamps[0]?.spend || 1;
+      document.getElementById('campRows').innerHTML = topCamps.map(c => {
+        const ctr = c.imps ? (c.clicks / c.imps) * 100 : 0;
+        const barW = Math.round((c.spend / maxSpend) * 100);
+        const pillClass = ctr > 0.3 ? 'pill-good' : ctr > 0.1 ? 'pill-warn' : 'pill-teal';
+        return `
+          <tr>
+            <td><span class="camp-name">${c.label}</span></td>
+            <td>${fmt.$(c.spend)}</td>
+            <td>${fmt.n(c.imps)}</td>
+            <td>${fmt.n(c.clicks)}</td>
+            <td><span class="pill ${pillClass}">${fmt.pct(ctr, 3)}</span></td>
+            <td><div class="bar-wrap"><div class="bar-fill" style="width:${barW}%"></div></div></td>
+          </tr>`;
+      }).join('');
+
+      // ── Top Regions
+      const topRegions = DashboardData.topGroups(rows, 'primary_region', 'spend', 8);
+      const maxR = topRegions[0]?.spend || 1;
+      document.getElementById('regionList').innerHTML = topRegions.map(r => `
+        <li class="region-row">
+          <div class="region-meta">
+            <span class="region-name">${r.label || 'Unknown'}</span>
+            <span class="region-val">${fmt.$(r.spend)}</span>
+          </div>
+          <div class="region-bar-bg">
+            <div class="region-bar-fill" style="width:${Math.round((r.spend / maxR) * 100)}%"></div>
+          </div>
+        </li>
+      `).join('');
+
+      // ── Efficiency stat blocks
+      document.getElementById('efficiencyStats').innerHTML = [
+        { label: 'eCPM',            value: fmt.$(kpis.cpm) },
+        { label: 'eCPC',            value: kpis.clicks ? fmt.$(kpis.spend / kpis.clicks) : '—' },
+        { label: 'CTR',             value: fmt.pct(kpis.ctr, 3) },
+        { label: 'Completion Rate', value: fmt.pct(kpis.completionRate) },
+      ].map(s => `
+        <div class="stat-block">
+          <div class="stat-block-label">${s.label}</div>
+          <div class="stat-block-value">${s.value}</div>
+        </div>
+      `).join('');
+
+      // ── Video funnel
+      const starts    = DashboardData.sum(rows, 'audio_video_starts');
+      const c25       = DashboardData.sum(rows, 'complete_25');
+      const c50       = DashboardData.sum(rows, 'complete_50');
+      const c75       = DashboardData.sum(rows, 'complete_75');
+      const c100      = DashboardData.sum(rows, 'complete_100');
+      const vSteps = [
+        { label: 'Started',   val: starts, pct: 100 },
+        { label: '25%',       val: c25,    pct: starts ? (c25  / starts) * 100 : 0 },
+        { label: '50%',       val: c50,    pct: starts ? (c50  / starts) * 100 : 0 },
+        { label: '75%',       val: c75,    pct: starts ? (c75  / starts) * 100 : 0 },
+        { label: 'Completed', val: c100,   pct: starts ? (c100 / starts) * 100 : 0 },
+      ];
+      const vColors = ['#0d9488','#0891b2','#7c3aed','#c026d3','#db2777'];
+      document.getElementById('videoFunnel').innerHTML = vSteps.map((s, i) => `
+        <div class="funnel-step">
+          <div class="funnel-label">${s.label}</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar-fill" style="width:${Math.min(s.pct, 100)}%;background:${vColors[i]}">
+              ${fmt.n(s.val)}
+            </div>
+          </div>
+          <div class="funnel-pct">${fmt.pct(s.pct)}</div>
+        </div>
+      `).join('');
+
+      // ── Area Chart: Spend + Impressions over time
+      const root = am5.Root.new('areaChart');
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      const chart = root.container.children.push(am5xy.XYChart.new(root, {
+        panX: true, wheelX: 'panX',
+        layout: root.verticalLayout,
+        paddingTop: 0,
+      }));
+
+      const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: 'day', count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+      }));
+      const ySpend = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, {}),
+      }));
+      const yImps = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, { opposite: true }),
+        syncWithAxis: ySpend,
+      }));
+
+      const spendS = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+        name: 'Spend',
+        xAxis, yAxis: ySpend,
+        valueXField: 'date', valueYField: 'spend',
+        stroke: am5.color(0x0d9488),
+        fill: am5.color(0x0d9488),
+      }));
+      spendS.fills.template.setAll({ fillOpacity: 0.15, visible: true });
+      spendS.strokes.template.setAll({ strokeWidth: 2 });
+
+      const impsS = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+        name: 'Impressions',
+        xAxis, yAxis: yImps,
+        valueXField: 'date', valueYField: 'imps',
+        stroke: am5.color(0x7c3aed),
+        fill: am5.color(0x7c3aed),
+      }));
+      impsS.fills.template.setAll({ fillOpacity: 0.08, visible: true });
+      impsS.strokes.template.setAll({ strokeWidth: 2 });
+
+      const data = dates.map(d => ({ date: d.date.getTime(), spend: d.spend, imps: d.imps }));
+      spendS.data.setAll(data);
+      impsS.data.setAll(data);
+
+      chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+      chart.children.unshift(am5.Legend.new(root, { centerX: am5.percent(100), x: am5.percent(100) }))
+        .data.setAll([spendS, impsS]);
+
+    })().catch(e => console.error(e));
+    </script>
+  </body>
+</html>

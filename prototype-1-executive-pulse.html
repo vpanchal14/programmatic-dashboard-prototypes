@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype 1 - Executive Pulse</title>
+    <link rel="stylesheet" href="./prototype-common.css" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Programmatic Executive Pulse</h1>
+      <div class="sub">Concept: fast AM health-check with trend + drivers</div>
+    </div>
+
+    <main class="container">
+      <div id="kpis" class="kpi-grid"></div>
+
+      <section class="layout-2col">
+        <div class="card">
+          <h2 class="section-title">Daily Spend, Conversions and CTR</h2>
+          <div id="trendChart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Top 8 Campaigns by Conversions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Conv.</th>
+                <th>Spend</th>
+                <th>CTR</th>
+              </tr>
+            </thead>
+            <tbody id="campaignRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="layout-2col" style="margin-top: 12px">
+        <div class="card">
+          <h2 class="section-title">Top Regions by Spend</h2>
+          <div id="regionChart" class="chart-sm"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">AM Insights</h2>
+          <ul class="insight-list" id="insights"></ul>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      async function init() {
+        const rows = await DashboardData.loadRows();
+        const kpis = DashboardData.getKpis(rows);
+        const dateSeries = DashboardData.getDateSeries(rows);
+        const topCampaigns = DashboardData.topGroups(
+          rows,
+          "campaign_name",
+          "conversions",
+          8
+        );
+        const topRegions = DashboardData.topGroups(
+          rows,
+          "primary_region",
+          "spend",
+          10
+        );
+
+        DashboardData.renderKpiCards("kpis", [
+          { label: "Total Spend", value: DashboardData.formatCurrency(kpis.spend) },
+          { label: "Impressions", value: DashboardData.formatNumber(kpis.imps) },
+          { label: "Clicks", value: DashboardData.formatNumber(kpis.clicks) },
+          {
+            label: "Total Conversions",
+            value: DashboardData.formatNumber(kpis.conversions),
+          },
+          { label: "CTR", value: DashboardData.formatPercent(kpis.ctr) },
+        ]);
+
+        const campaignRowsEl = document.getElementById("campaignRows");
+        campaignRowsEl.innerHTML = topCampaigns
+          .map((row) => {
+            const ctr = row.imps ? (row.clicks / row.imps) * 100 : 0;
+            return `
+            <tr>
+              <td>${row.label}</td>
+              <td>${DashboardData.formatNumber(row.conversions)}</td>
+              <td>${DashboardData.formatCurrency(row.spend)}</td>
+              <td>${DashboardData.formatPercent(ctr)}</td>
+            </tr>
+          `;
+          })
+          .join("");
+
+        const insightItems = [
+          `Top campaign contribution: ${topCampaigns[0]?.label || "N/A"} drives ${DashboardData.formatNumber(
+            topCampaigns[0]?.conversions || 0
+          )} conversions.`,
+          `Best value focus: blended CPA is ${DashboardData.formatCurrency(
+            kpis.cpa
+          )}; use this as benchmark for budget shifts.`,
+          `Video quality pulse: completion rate at ${DashboardData.formatPercent(
+            kpis.completionRate
+          )}.`,
+        ];
+        document.getElementById("insights").innerHTML = insightItems
+          .map((text) => `<li>${text}</li>`)
+          .join("");
+
+        const root1 = am5.Root.new("trendChart");
+        root1.setThemes([am5themes_Animated.new(root1)]);
+        const chart1 = root1.container.children.push(
+          am5xy.XYChart.new(root1, { panX: true, wheelX: "panX", layout: root1.verticalLayout })
+        );
+        const xRenderer1 = am5xy.AxisRendererX.new(root1, {});
+        const xAxis1 = chart1.xAxes.push(
+          am5xy.DateAxis.new(root1, {
+            baseInterval: { timeUnit: "day", count: 1 },
+            renderer: xRenderer1,
+          })
+        );
+        const yAxisSpend = chart1.yAxes.push(am5xy.ValueAxis.new(root1, { renderer: am5xy.AxisRendererY.new(root1, {}) }));
+        const yAxisConv = chart1.yAxes.push(
+          am5xy.ValueAxis.new(root1, {
+            renderer: am5xy.AxisRendererY.new(root1, { opposite: true }),
+          })
+        );
+        const spendSeries = chart1.series.push(
+          am5xy.ColumnSeries.new(root1, {
+            name: "Spend",
+            xAxis: xAxis1,
+            yAxis: yAxisSpend,
+            valueYField: "spend",
+            valueXField: "date",
+          })
+        );
+        const convSeries = chart1.series.push(
+          am5xy.LineSeries.new(root1, {
+            name: "Conversions",
+            xAxis: xAxis1,
+            yAxis: yAxisConv,
+            valueYField: "conversions",
+            valueXField: "date",
+            stroke: am5.color(0x2563eb),
+            fill: am5.color(0x2563eb),
+          })
+        );
+        const ctrSeries = chart1.series.push(
+          am5xy.LineSeries.new(root1, {
+            name: "CTR %",
+            xAxis: xAxis1,
+            yAxis: yAxisConv,
+            valueYField: "ctr",
+            valueXField: "date",
+            stroke: am5.color(0x16a34a),
+            fill: am5.color(0x16a34a),
+          })
+        );
+
+        const normalizedSeries = dateSeries.map((d) => ({
+          ...d,
+          date: d.date.getTime(),
+        }));
+        spendSeries.data.setAll(normalizedSeries);
+        convSeries.data.setAll(normalizedSeries);
+        ctrSeries.data.setAll(normalizedSeries);
+        chart1.set("cursor", am5xy.XYCursor.new(root1, {}));
+        chart1.children.push(am5.Legend.new(root1, {})).data.setAll([
+          spendSeries,
+          convSeries,
+          ctrSeries,
+        ]);
+
+        const root2 = am5.Root.new("regionChart");
+        root2.setThemes([am5themes_Animated.new(root2)]);
+        const chart2 = root2.container.children.push(am5xy.XYChart.new(root2, { layout: root2.verticalLayout }));
+        const yAxis2 = chart2.yAxes.push(
+          am5xy.CategoryAxis.new(root2, {
+            renderer: am5xy.AxisRendererY.new(root2, {}),
+            categoryField: "label",
+          })
+        );
+        const xAxis2 = chart2.xAxes.push(am5xy.ValueAxis.new(root2, { renderer: am5xy.AxisRendererX.new(root2, {}) }));
+        const series2 = chart2.series.push(
+          am5xy.ColumnSeries.new(root2, {
+            xAxis: xAxis2,
+            yAxis: yAxis2,
+            valueXField: "spend",
+            categoryYField: "label",
+          })
+        );
+        yAxis2.data.setAll(topRegions);
+        series2.data.setAll(topRegions);
+      }
+
+      init().catch((error) => {
+        console.error(error);
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          `<div class="container"><div class="card">Unable to load data: ${error.message}</div></div>`
+        );
+      });
+    </script>
+  </body>
+</html>

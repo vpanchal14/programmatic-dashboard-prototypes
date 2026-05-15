@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Programmatic Dashboard Concepts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: #f3f4f6;
+        color: #111827;
+        min-height: 100vh;
+      }
+
+      .header {
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 20px 32px;
+      }
+      .header-title { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; }
+      .header-sub { font-size: 13px; color: #6b7280; margin-top: 3px; }
+
+      .page { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+      .note {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 12.5px;
+        color: #92400e;
+        margin-bottom: 28px;
+      }
+      .note code { background: #fef3c7; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .concept-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: box-shadow 0.15s, transform 0.15s;
+      }
+      .concept-card:hover {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+      }
+
+      .card-swatch {
+        height: 6px;
+      }
+
+      .card-body { padding: 20px; }
+      .card-label {
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.8px; margin-bottom: 6px;
+      }
+      .card-name { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 8px; }
+      .card-desc { font-size: 13px; color: #6b7280; line-height: 1.6; }
+
+      .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+      .tag {
+        font-size: 11px; font-weight: 500;
+        border-radius: 99px; padding: 3px 10px;
+        background: #f3f4f6; color: #374151;
+      }
+
+      .card-footer {
+        padding: 12px 20px;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        font-size: 12px; font-weight: 600;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .arrow { font-size: 14px; }
+
+      @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-title">Programmatic Dashboard Concepts</div>
+      <div class="header-sub">4 design directions for account manager review — open with a local server so CSV data loads</div>
+    </div>
+
+    <main class="page">
+      <div class="note">
+        <strong>Local preview:</strong> Run <code>python -m http.server 5500</code> in this folder, then open <code>http://localhost:5500</code>
+      </div>
+
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 16px;margin-bottom:28px;font-size:12.5px;color:#1e40af;line-height:1.7">
+        <strong>📤 Share with your team (no server needed):</strong><br/>
+        Go to <a href="https://app.netlify.com/drop" target="_blank" style="color:#1d4ed8;font-weight:600">app.netlify.com/drop</a> and drag-and-drop this entire folder onto the page.
+        Netlify instantly gives you a public <code>https://…netlify.app</code> URL you can share with anyone — no account required, free, takes about 10 seconds.
+        The CSV file and all HTML/JS files need to be in the same folder when you drop it.
+      </div>
+
+      <div class="grid">
+
+        <a href="./concept-a-command-strip.html" class="concept-card">
+          <div class="card-swatch" style="background:linear-gradient(90deg,#0d9488,#0891b2)"></div>
+          <div class="card-body">
+            <div class="card-label" style="color:#0d9488">Concept A</div>
+            <div class="card-name">Command Strip</div>
+            <div class="card-desc">
+              Sticky full-width KPI rail that stays in view while you scroll. Dominant area chart for Spend + Impressions trend, delivery funnel, and campaign efficiency table. Clean teal/cyan SaaS feel — fast morning health-check.
+            </div>
+            <div class="card-tags">
+              <span class="tag">Teal accent</span>
+              <span class="tag">Sticky KPIs</span>
+              <span class="tag">Area chart</span>
+              <span class="tag">Delivery funnel</span>
+              <span class="tag">Video funnel</span>
+            </div>
+          </div>
+          <div class="card-footer" style="color:#0d9488">
+            <span class="arrow">→</span> Open Concept A
+          </div>
+        </a>
+
+        <a href="./concept-b-story-flow.html" class="concept-card">
+          <div class="card-swatch" style="background:linear-gradient(90deg,#f97316,#f59e0b)"></div>
+          <div class="card-body">
+            <div class="card-label" style="color:#f97316">Concept B</div>
+            <div class="card-name">Story Flow</div>
+            <div class="card-desc">
+              Editorial top-to-bottom narrative: Chapter 1 = what happened (KPI cards), Chapter 2 = how it trended (Spend + CTR chart + regions), Chapter 3 = which campaigns (full table), Chapter 4 = AM notes. Warm slate + coral, easy to read on a client call.
+            </div>
+            <div class="card-tags">
+              <span class="tag">Coral accent</span>
+              <span class="tag">Chapter layout</span>
+              <span class="tag">Bar + line combo</span>
+              <span class="tag">Region ranking</span>
+              <span class="tag">Callout notes</span>
+            </div>
+          </div>
+          <div class="card-footer" style="color:#f97316">
+            <span class="arrow">→</span> Open Concept B
+          </div>
+        </a>
+
+        <a href="./concept-c-scorecard-grid.html" class="concept-card">
+          <div class="card-swatch" style="background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
+          <div class="card-body">
+            <div class="card-label" style="color:#7c3aed">Concept C</div>
+            <div class="card-name">Scorecard Grid</div>
+            <div class="card-desc">
+              Optimizer-first layout. Violet summary strip across the top, spend + CTR trend charts, then a tiled grid of campaign scorecards each with RAG (red/amber/green) status pills for CTR, eCPM, and CVR. AM can scan 12 campaigns in seconds and know what to fix.
+            </div>
+            <div class="card-tags">
+              <span class="tag">Violet accent</span>
+              <span class="tag">RAG status</span>
+              <span class="tag">Campaign tiles</span>
+              <span class="tag">Optimizer view</span>
+              <span class="tag">Dense data</span>
+            </div>
+          </div>
+          <div class="card-footer" style="color:#7c3aed">
+            <span class="arrow">→</span> Open Concept C
+          </div>
+        </a>
+
+        <a href="./concept-d-campaign-spotlight.html" class="concept-card">
+          <div class="card-swatch" style="background:linear-gradient(90deg,#4f46e5,#6366f1)"></div>
+          <div class="card-body">
+            <div class="card-label" style="color:#4f46e5">Concept D</div>
+            <div class="card-name">Campaign Spotlight</div>
+            <div class="card-desc">
+              Two-panel master/detail layout. Left sidebar lists all campaigns with RAG status and spend; click any to load a full detail pane — delivery funnel, performance signals, spend + CTR trend charts, and top DMAs. Overview tab shows the aggregate picture. Ideal for client reviews or deep-dives.
+            </div>
+            <div class="card-tags">
+              <span class="tag">Indigo accent</span>
+              <span class="tag">Master/detail</span>
+              <span class="tag">Campaign drill-down</span>
+              <span class="tag">DMA breakdown</span>
+              <span class="tag">Search sidebar</span>
+            </div>
+          </div>
+          <div class="card-footer" style="color:#4f46e5">
+            <span class="arrow">→</span> Open Concept D
+          </div>
+        </a>
+
+      </div>
+    </main>
+  </body>
+</html>

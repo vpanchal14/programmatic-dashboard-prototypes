@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype 3 - Geo Intelligence</title>
+    <link rel="stylesheet" href="./prototype-common.css" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/map.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/geodata/usaLow.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Programmatic Geo Intelligence</h1>
+      <div class="sub">Concept: region-first storytelling for market expansion</div>
+    </div>
+
+    <main class="container">
+      <div id="kpis" class="kpi-grid"></div>
+
+      <section class="layout-2col">
+        <div class="card">
+          <h2 class="section-title">US Spend Heatmap by Region (Prototype)</h2>
+          <div id="mapChart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Top & Bottom Regions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Region</th>
+                <th>Spend</th>
+                <th>Conv.</th>
+                <th>CPA</th>
+              </tr>
+            </thead>
+            <tbody id="regionRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="layout-2col" style="margin-top: 12px">
+        <div class="card">
+          <h2 class="section-title">Top DMA by Spend</h2>
+          <div id="dmaChart" class="chart-sm"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Regional Trend: Spend vs CTR</h2>
+          <div id="dateChart" class="chart-sm"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      async function init() {
+        const rows = await DashboardData.loadRows();
+        const kpis = DashboardData.getKpis(rows);
+        const topRegions = DashboardData.topGroups(rows, "primary_region", "spend", 12).map((r) => ({
+          ...r,
+          cpa: r.conversions ? r.spend / r.conversions : 0,
+        }));
+        const bottomRegions = DashboardData.topGroups(rows, "primary_region", "conversions", 50)
+          .filter((r) => r.spend > 0)
+          .map((r) => ({ ...r, cpa: r.conversions ? r.spend / r.conversions : 0 }))
+          .sort((a, b) => a.conversions - b.conversions)
+          .slice(0, 6);
+        const dmas = DashboardData.topGroups(rows, "dma_name", "spend", 10);
+        const dateSeries = DashboardData.getDateSeries(rows).map((d) => ({
+          date: d.date.getTime(),
+          spend: d.spend,
+          ctr: d.ctr,
+        }));
+
+        DashboardData.renderKpiCards("kpis", [
+          { label: "Total Spend", value: DashboardData.formatCurrency(kpis.spend) },
+          { label: "Blended CPA", value: DashboardData.formatCurrency(kpis.cpa) },
+          { label: "Blended CTR", value: DashboardData.formatPercent(kpis.ctr) },
+          { label: "Regions Active", value: DashboardData.formatNumber(topRegions.length) },
+          { label: "Top DMA", value: dmas[0]?.label || "N/A" },
+        ]);
+
+        const regionRows = [...topRegions.slice(0, 6), ...bottomRegions]
+          .map(
+            (r) => `
+          <tr>
+            <td>${r.label}</td>
+            <td>${DashboardData.formatCurrency(r.spend)}</td>
+            <td>${DashboardData.formatNumber(r.conversions)}</td>
+            <td>${r.cpa ? DashboardData.formatCurrency(r.cpa) : "N/A"}</td>
+          </tr>`
+          )
+          .join("");
+        document.getElementById("regionRows").innerHTML = regionRows;
+
+        const stateMap = {
+          Alabama: "US-AL", Alaska: "US-AK", Arizona: "US-AZ", Arkansas: "US-AR", California: "US-CA",
+          Colorado: "US-CO", Connecticut: "US-CT", Delaware: "US-DE", Florida: "US-FL",
+          Georgia: "US-GA", Hawaii: "US-HI", Idaho: "US-ID", Illinois: "US-IL", Indiana: "US-IN",
+          Iowa: "US-IA", Kansas: "US-KS", Kentucky: "US-KY", Louisiana: "US-LA", Maine: "US-ME",
+          Maryland: "US-MD", Massachusetts: "US-MA", Michigan: "US-MI", Minnesota: "US-MN",
+          Mississippi: "US-MS", Missouri: "US-MO", Montana: "US-MT", Nebraska: "US-NE",
+          Nevada: "US-NV", "New Hampshire": "US-NH", "New Jersey": "US-NJ", "New Mexico": "US-NM",
+          "New York": "US-NY", "North Carolina": "US-NC", "North Dakota": "US-ND", Ohio: "US-OH",
+          Oklahoma: "US-OK", Oregon: "US-OR", Pennsylvania: "US-PA", "Rhode Island": "US-RI",
+          "South Carolina": "US-SC", "South Dakota": "US-SD", Tennessee: "US-TN", Texas: "US-TX",
+          Utah: "US-UT", Vermont: "US-VT", Virginia: "US-VA", Washington: "US-WA",
+          "West Virginia": "US-WV", Wisconsin: "US-WI", Wyoming: "US-WY", "District of Columbia": "US-DC",
+        };
+
+        const mapData = topRegions
+          .map((r) => ({ id: stateMap[r.label], value: r.spend, region: r.label }))
+          .filter((d) => d.id);
+
+        const rootMap = am5.Root.new("mapChart");
+        rootMap.setThemes([am5themes_Animated.new(rootMap)]);
+        const chartMap = rootMap.container.children.push(
+          am5map.MapChart.new(rootMap, { projection: am5map.geoAlbersUsa() })
+        );
+        const seriesMap = chartMap.series.push(
+          am5map.MapPolygonSeries.new(rootMap, {
+            geoJSON: am5geodata_usaLow,
+            valueField: "value",
+            calculateAggregates: true,
+          })
+        );
+        seriesMap.mapPolygons.template.setAll({
+          tooltipText: "{region}: ${value.formatNumber('#,###')}",
+        });
+        seriesMap.set("heatRules", [
+          {
+            target: seriesMap.mapPolygons.template,
+            dataField: "value",
+            min: am5.color(0xbfdbfe),
+            max: am5.color(0x1d4ed8),
+            key: "fill",
+          },
+        ]);
+        seriesMap.data.setAll(mapData);
+
+        function barChart(target, data, valueField) {
+          const root = am5.Root.new(target);
+          root.setThemes([am5themes_Animated.new(root)]);
+          const chart = root.container.children.push(am5xy.XYChart.new(root, {}));
+          const yAxis = chart.yAxes.push(
+            am5xy.CategoryAxis.new(root, {
+              categoryField: "label",
+              renderer: am5xy.AxisRendererY.new(root, {}),
+            })
+          );
+          const xAxis = chart.xAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererX.new(root, {}) }));
+          const series = chart.series.push(
+            am5xy.ColumnSeries.new(root, {
+              xAxis,
+              yAxis,
+              valueXField: valueField,
+              categoryYField: "label",
+            })
+          );
+          yAxis.data.setAll(data);
+          series.data.setAll(data);
+        }
+
+        barChart("dmaChart", dmas, "spend");
+
+        const rootDate = am5.Root.new("dateChart");
+        rootDate.setThemes([am5themes_Animated.new(rootDate)]);
+        const chartDate = rootDate.container.children.push(am5xy.XYChart.new(rootDate, {}));
+        const xAxis = chartDate.xAxes.push(
+          am5xy.DateAxis.new(rootDate, {
+            baseInterval: { timeUnit: "day", count: 1 },
+            renderer: am5xy.AxisRendererX.new(rootDate, {}),
+          })
+        );
+        const yAxis = chartDate.yAxes.push(am5xy.ValueAxis.new(rootDate, { renderer: am5xy.AxisRendererY.new(rootDate, {}) }));
+        const spendSeries = chartDate.series.push(
+          am5xy.ColumnSeries.new(rootDate, {
+            xAxis,
+            yAxis,
+            valueXField: "date",
+            valueYField: "spend",
+            name: "Spend",
+          })
+        );
+        const ctrSeries = chartDate.series.push(
+          am5xy.LineSeries.new(rootDate, {
+            xAxis,
+            yAxis,
+            valueXField: "date",
+            valueYField: "ctr",
+            name: "CTR%",
+            stroke: am5.color(0x059669),
+            fill: am5.color(0x059669),
+          })
+        );
+        spendSeries.data.setAll(dateSeries);
+        ctrSeries.data.setAll(dateSeries);
+      }
+
+      init().catch(console.error);
+    </script>
+  </body>
+</html>

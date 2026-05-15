@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype 4 - Action Center</title>
+    <link rel="stylesheet" href="./prototype-common.css" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Programmatic Action Center</h1>
+      <div class="sub">Concept: anomaly detection + next best action</div>
+    </div>
+
+    <main class="container">
+      <div id="kpis" class="kpi-grid"></div>
+
+      <section class="layout-2col">
+        <div class="card">
+          <h2 class="section-title">Funnel (Impressions > Clicks > Conversions)</h2>
+          <div id="funnelChart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Alert Feed</h2>
+          <ul class="insight-list" id="alertFeed"></ul>
+        </div>
+      </section>
+
+      <section class="layout-2col" style="margin-top: 12px">
+        <div class="card">
+          <h2 class="section-title">Campaign Change Impact (Spend vs Conversions)</h2>
+          <div id="impactChart" class="chart-sm"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Recommended Moves</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Spend</th>
+                <th>Conv.</th>
+                <th>Recommendation</th>
+              </tr>
+            </thead>
+            <tbody id="movesRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      async function init() {
+        const rows = await DashboardData.loadRows();
+        const kpis = DashboardData.getKpis(rows);
+        const campaigns = DashboardData.topGroups(rows, "campaign_name", "spend", 15).map((c) => ({
+          ...c,
+          ctr: c.imps ? (c.clicks / c.imps) * 100 : 0,
+          cpa: c.conversions ? c.spend / c.conversions : 0,
+        }));
+        const dateSeries = DashboardData.getDateSeries(rows).map((d) => ({
+          date: d.date.getTime(),
+          spend: d.spend,
+          conversions: d.conversions,
+        }));
+
+        DashboardData.renderKpiCards("kpis", [
+          { label: "Total Spend", value: DashboardData.formatCurrency(kpis.spend) },
+          { label: "CTR", value: DashboardData.formatPercent(kpis.ctr) },
+          { label: "CVR", value: DashboardData.formatPercent(kpis.cvr) },
+          { label: "CPA", value: DashboardData.formatCurrency(kpis.cpa) },
+          {
+            label: "Completion Rate",
+            value: DashboardData.formatPercent(kpis.completionRate),
+          },
+        ]);
+
+        const alerts = [];
+        const highSpendNoConv = campaigns.filter((c) => c.spend > kpis.spend / 15 && c.conversions < 1);
+        const lowCtr = campaigns.filter((c) => c.ctr < kpis.ctr * 0.7);
+        const efficient = campaigns.filter((c) => c.cpa > 0 && c.cpa < kpis.cpa * 0.8);
+
+        if (highSpendNoConv.length) {
+          alerts.push(`High urgency: ${highSpendNoConv.length} campaign(s) have material spend but no conversions.`);
+        }
+        if (lowCtr.length) {
+          alerts.push(`Creative risk: ${lowCtr.length} campaign(s) are below 70% of blended CTR benchmark.`);
+        }
+        if (efficient.length) {
+          alerts.push(`Scale opportunity: ${efficient.length} campaign(s) are converting at least 20% below blended CPA.`);
+        }
+        if (!alerts.length) {
+          alerts.push("No critical anomalies detected. Keep monitoring daily pacing and budget shifts.");
+        }
+        document.getElementById("alertFeed").innerHTML = alerts
+          .map((a) => `<li>${a}</li>`)
+          .join("");
+
+        const moveRows = campaigns
+          .slice(0, 10)
+          .map((c) => {
+            const recommendation =
+              c.conversions < 1 && c.spend > kpis.spend / 15
+                ? `<span class="pill bad">Pause & Audit</span>`
+                : c.cpa > 0 && c.cpa < kpis.cpa
+                ? `<span class="pill good">Scale 10%</span>`
+                : `<span class="pill warn">Refresh Creative</span>`;
+            return `
+              <tr>
+                <td>${c.label}</td>
+                <td>${DashboardData.formatCurrency(c.spend)}</td>
+                <td>${DashboardData.formatNumber(c.conversions)}</td>
+                <td>${recommendation}</td>
+              </tr>
+            `;
+          })
+          .join("");
+        document.getElementById("movesRows").innerHTML = moveRows;
+
+        const root1 = am5.Root.new("funnelChart");
+        root1.setThemes([am5themes_Animated.new(root1)]);
+        const chart1 = root1.container.children.push(am5percent.SlicedChart.new(root1, {}));
+        const series1 = chart1.series.push(
+          am5percent.FunnelSeries.new(root1, {
+            orientation: "vertical",
+            valueField: "value",
+            categoryField: "stage",
+          })
+        );
+        series1.data.setAll([
+          { stage: "Impressions", value: kpis.imps },
+          { stage: "Clicks", value: kpis.clicks },
+          { stage: "Conversions", value: kpis.conversions },
+        ]);
+
+        const root2 = am5.Root.new("impactChart");
+        root2.setThemes([am5themes_Animated.new(root2)]);
+        const chart2 = root2.container.children.push(am5xy.XYChart.new(root2, {}));
+        const xAxis = chart2.xAxes.push(
+          am5xy.DateAxis.new(root2, {
+            baseInterval: { timeUnit: "day", count: 1 },
+            renderer: am5xy.AxisRendererX.new(root2, {}),
+          })
+        );
+        const yAxis = chart2.yAxes.push(am5xy.ValueAxis.new(root2, { renderer: am5xy.AxisRendererY.new(root2, {}) }));
+        const spendSeries = chart2.series.push(
+          am5xy.ColumnSeries.new(root2, {
+            xAxis,
+            yAxis,
+            valueXField: "date",
+            valueYField: "spend",
+            name: "Spend",
+          })
+        );
+        const convSeries = chart2.series.push(
+          am5xy.LineSeries.new(root2, {
+            xAxis,
+            yAxis,
+            valueXField: "date",
+            valueYField: "conversions",
+            name: "Conversions",
+            stroke: am5.color(0x2563eb),
+            fill: am5.color(0x2563eb),
+          })
+        );
+        spendSeries.data.setAll(dateSeries);
+        convSeries.data.setAll(dateSeries);
+        chart2.children.push(am5.Legend.new(root2, {})).data.setAll([spendSeries, convSeries]);
+      }
+
+      init().catch(console.error);
+    </script>
+  </body>
+</html>

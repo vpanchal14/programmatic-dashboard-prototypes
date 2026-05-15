@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Concept C — Scorecard Grid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="./prototype-common.js"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --violet:    #7c3aed;
+        --violet-lt: #f5f3ff;
+        --violet-md: #8b5cf6;
+        --ink:       #111827;
+        --body:      #374151;
+        --muted:     #6b7280;
+        --line:      #e5e7eb;
+        --bg:        #f9fafb;
+        --white:     #ffffff;
+        --g:    #16a34a; --g-bg: #dcfce7; --g-text: #15803d;
+        --a:    #d97706; --a-bg: #fef3c7; --a-text: #b45309;
+        --r:    #dc2626; --r-bg: #fee2e2; --r-text: #b91c1c;
+      }
+
+      body { font-family: "Inter", "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); font-size: 13px; }
+
+      /* ── Header ──────────────────────────────── */
+      .hdr {
+        background: var(--white); border-bottom: 1px solid var(--line);
+        padding: 0 24px; height: 52px;
+        display: flex; align-items: center; gap: 14px;
+        position: sticky; top: 0; z-index: 20;
+      }
+      .hdr-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--violet); }
+      .hdr-name { font-size: 14px; font-weight: 700; }
+      .hdr-tag { background: var(--violet-lt); color: var(--violet); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
+      .hdr-date { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+      /* ── Summary strip ───────────────────────── */
+      .summary { background: var(--violet); display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid rgba(0,0,0,0.1); }
+      .sum-cell { padding: 14px 18px; border-right: 1px solid rgba(255,255,255,0.15); color: #fff; }
+      .sum-cell:last-child { border-right: none; }
+      .sum-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.75; margin-bottom: 4px; }
+      .sum-val { font-size: 19px; font-weight: 800; line-height: 1; }
+      .sum-sub { font-size: 10px; opacity: 0.7; margin-top: 3px; }
+
+      /* ── RAG tally bar ───────────────────────── */
+      .tally-bar {
+        background: var(--white); border-bottom: 1px solid var(--line);
+        padding: 10px 24px; display: flex; align-items: center; gap: 16px;
+      }
+      .tally-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+      .tally-chips { display: flex; align-items: center; gap: 8px; }
+      .tally-chip {
+        display: inline-flex; align-items: center; gap: 5px;
+        border-radius: 6px; padding: 4px 12px;
+        font-size: 12px; font-weight: 700; cursor: pointer;
+        border: 2px solid transparent; transition: all 0.15s;
+        user-select: none;
+      }
+      .tally-chip.g        { background: var(--g-bg); color: var(--g-text); }
+      .tally-chip.g.active { border-color: var(--g); }
+      .tally-chip.a        { background: var(--a-bg); color: var(--a-text); }
+      .tally-chip.a.active { border-color: var(--a); }
+      .tally-chip.r        { background: var(--r-bg); color: var(--r-text); }
+      .tally-chip.r.active { border-color: var(--r); }
+      .tally-chip.all      { background: var(--violet-lt); color: var(--violet); }
+      .tally-chip.all.active { border-color: var(--violet); }
+      .tally-track { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; display: flex; }
+      .tally-seg { height: 8px; transition: width 0.4s ease; }
+
+      /* ── Layout ──────────────────────────────── */
+      .page { max-width: 1440px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+      .row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+      /* ── Section heading ─────────────────────── */
+      .sec-hd { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+      .sec-hd::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+      /* ── Card ────────────────────────────────── */
+      .card { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+      .card-hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+      .card-title { font-size: 13px; font-weight: 700; }
+      .card-hint { font-size: 11px; color: var(--muted); }
+
+      /* ── Charts ──────────────────────────────── */
+      .chart-h230 { width: 100%; height: 230px; }
+      .chart-h200 { width: 100%; height: 200px; }
+
+      /* ── Mini-stat row inside card ───────────── */
+      .mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+      .mini-stat { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+      .mini-stat-lbl { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 3px; }
+      .mini-stat-val { font-size: 17px; font-weight: 800; }
+
+      /* ── Scorecard grid ──────────────────────── */
+      .scorecard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+      .sc { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 14px; transition: box-shadow 0.15s; }
+      .sc:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.09); }
+      .sc.hidden { display: none; }
+      .sc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+      .sc-name { font-weight: 700; font-size: 12.5px; max-width: 210px; line-height: 1.3; }
+      .sc-status { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
+      .sc-status.g { background: var(--g-bg); color: var(--g-text); }
+      .sc-status.a { background: var(--a-bg); color: var(--a-text); }
+      .sc-status.r { background: var(--r-bg); color: var(--r-text); }
+
+      /* 6 metrics in 3+3 layout */
+      .sc-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; margin-bottom: 10px; }
+      .sc-metric-lbl { font-size: 10px; color: var(--muted); font-weight: 500; margin-bottom: 1px; }
+      .sc-metric-val { font-size: 14px; font-weight: 700; }
+
+      .sc-divider { height: 1px; background: var(--line); margin: 8px 0; }
+
+      .sc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+      .rag-tag { display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; padding: 2px 7px; font-size: 10px; font-weight: 600; }
+      .rag-tag.g { background: var(--g-bg); color: var(--g-text); }
+      .rag-tag.a { background: var(--a-bg); color: var(--a-text); }
+      .rag-tag.r { background: var(--r-bg); color: var(--r-text); }
+      .rag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+      .rag-dot.g { background: var(--g); }
+      .rag-dot.a { background: var(--a); }
+      .rag-dot.r { background: var(--r); }
+
+      .sc-progress { }
+      .sc-prog-hd { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+      .sc-prog-bar { background: var(--line); border-radius: 3px; height: 5px; overflow: hidden; }
+      .sc-prog-fill { height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--violet), var(--violet-md)); }
+
+      /* ── Legend ──────────────────────────────── */
+      .legend { display: flex; gap: 14px; align-items: center; font-size: 11px; color: var(--muted); }
+      .legend-item { display: flex; align-items: center; gap: 5px; }
+      .legend-box { width: 10px; height: 10px; border-radius: 2px; }
+
+      /* ── Region rank list ────────────────────── */
+      .region-list { display: flex; flex-direction: column; gap: 9px; }
+      .region-row { }
+      .region-meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+      .region-name { font-weight: 600; }
+      .region-val  { color: var(--muted); font-weight: 500; }
+      .region-bar-bg { background: var(--line); border-radius: 3px; height: 6px; overflow: hidden; }
+      .region-bar-fill { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--violet), var(--violet-md)); }
+
+      @media (max-width: 1100px) {
+        .summary { grid-template-columns: repeat(4, 1fr); }
+        .row-3 { grid-template-columns: 1fr; }
+        .row-2 { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="hdr">
+      <div class="hdr-dot"></div>
+      <span class="hdr-name">Programmatic Scorecard</span>
+      <span class="hdr-tag">Optimizer View</span>
+      <span class="hdr-date" id="hdrDate">—</span>
+    </div>
+
+    <div class="summary" id="summaryStrip"></div>
+
+    <!-- RAG tally + filter bar -->
+    <div class="tally-bar">
+      <span class="tally-lbl">Health:</span>
+      <div class="tally-chips">
+        <div class="tally-chip all active" id="filterAll" onclick="setFilter('all')">All <span id="tallyAll">—</span></div>
+        <div class="tally-chip g" id="filterG"   onclick="setFilter('g')">● On Track <span id="tallyG">—</span></div>
+        <div class="tally-chip a" id="filterA"   onclick="setFilter('a')">● Watch <span id="tallyA">—</span></div>
+        <div class="tally-chip r" id="filterR"   onclick="setFilter('r')">● Attention <span id="tallyR">—</span></div>
+      </div>
+      <div class="tally-track" id="tallyTrack"></div>
+    </div>
+
+    <main class="page">
+
+      <!-- Row 1: Spend + CTR + Top Regions -->
+      <div class="row-3">
+        <div class="card">
+          <div class="card-hd">
+            <span class="card-title">Daily Spend</span>
+            <span class="card-hint">All campaigns</span>
+          </div>
+          <div id="spendTrend" class="chart-h230"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd">
+            <span class="card-title">CTR Trend</span>
+            <span class="card-hint">Blended</span>
+          </div>
+          <div id="ctrTrend" class="chart-h230"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd">
+            <span class="card-title">Top Regions</span>
+            <span class="card-hint">By spend</span>
+          </div>
+          <div class="region-list" id="regionList"></div>
+        </div>
+      </div>
+
+      <!-- Row 2: Spend vs Impressions dual-axis + Conversions trend -->
+      <div class="row-2">
+        <div class="card">
+          <div class="card-hd">
+            <span class="card-title">Spend vs Impressions</span>
+            <span class="card-hint">Dual axis · daily</span>
+          </div>
+          <div class="mini-stats" id="miniStats"></div>
+          <div id="dualChart" class="chart-h200"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd">
+            <span class="card-title">Conversions &amp; CPA Trend</span>
+            <span class="card-hint">Daily</span>
+          </div>
+          <div id="convChart" class="chart-h200" style="margin-top:46px"></div>
+        </div>
+      </div>
+
+      <!-- Scorecard grid -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="sec-hd" style="flex:1;margin-bottom:0">Campaign Scorecards</div>
+          <div class="legend" style="margin-left:16px">
+            <span class="legend-item"><span class="legend-box" style="background:#dcfce7;border:1px solid #16a34a"></span> On track</span>
+            <span class="legend-item"><span class="legend-box" style="background:#fef3c7;border:1px solid #d97706"></span> Watch</span>
+            <span class="legend-item"><span class="legend-box" style="background:#fee2e2;border:1px solid #dc2626"></span> Attention</span>
+          </div>
+        </div>
+        <div class="scorecard-grid" id="scorecardGrid"></div>
+      </div>
+
+    </main>
+
+    <script>
+    let activeFilter = 'all';
+
+    function setFilter(f) {
+      activeFilter = f;
+      ['all','g','a','r'].forEach(k => {
+        document.getElementById('filter' + k.charAt(0).toUpperCase() + k.slice(1))
+          ?.classList.toggle('active', k === f);
+      });
+      document.querySelectorAll('.sc').forEach(el => {
+        if (f === 'all') { el.classList.remove('hidden'); return; }
+        el.classList.toggle('hidden', el.dataset.rag !== f);
+      });
+    }
+
+    (async () => {
+      const fmt = {
+        $:   v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v),
+        n:   v => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v),
+        pct: (v, d=2) => v.toFixed(d) + '%',
+      };
+
+      function rag(val, hi, lo, hiGood = true) {
+        return hiGood ? (val >= hi ? 'g' : val >= lo ? 'a' : 'r') : (val <= hi ? 'g' : val <= lo ? 'a' : 'r');
+      }
+
+      const rows = await DashboardData.loadRows();
+      const kpis = DashboardData.getKpis(rows);
+      const dates = DashboardData.getDateSeries(rows);
+      const topCamps = DashboardData.topGroups(rows, 'campaign_name', 'spend', 15);
+      const topRegions = DashboardData.topGroups(rows, 'primary_region', 'spend', 8);
+
+      // date label
+      const allDates = rows.map(r => r.report_date).filter(Boolean).sort();
+      if (allDates.length) {
+        const d = new Date(allDates[allDates.length - 1]);
+        document.getElementById('hdrDate').textContent =
+          'Period ending ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      // ── Summary strip (7 metrics)
+      const eCpc = kpis.clicks ? kpis.spend / kpis.clicks : 0;
+      const eCpa = kpis.conversions ? kpis.spend / kpis.conversions : 0;
+      const sumDefs = [
+        { lbl: 'Spend',        val: fmt.$(kpis.spend),              sub: 'Total media' },
+        { lbl: 'Impressions',  val: fmt.n(kpis.imps),               sub: 'Won' },
+        { lbl: 'Clicks',       val: fmt.n(kpis.clicks),             sub: '' },
+        { lbl: 'Conversions',  val: fmt.n(kpis.conversions),        sub: 'Total' },
+        { lbl: 'CTR',          val: fmt.pct(kpis.ctr, 3),           sub: 'Blended' },
+        { lbl: 'eCPM',         val: fmt.$(kpis.cpm),                sub: 'Effective' },
+        { lbl: 'eCPC',         val: fmt.$(eCpc),                    sub: 'Cost/click' },
+      ];
+      document.getElementById('summaryStrip').innerHTML = sumDefs.map(s => `
+        <div class="sum-cell">
+          <div class="sum-lbl">${s.lbl}</div>
+          <div class="sum-val">${s.val}</div>
+          <div class="sum-sub">${s.sub}</div>
+        </div>`).join('');
+
+      // ── Mini-stats inside dual chart card
+      document.getElementById('miniStats').innerHTML = [
+        { lbl: 'Total Spend',  val: fmt.$(kpis.spend) },
+        { lbl: 'Total Imps',   val: fmt.n(kpis.imps) },
+        { lbl: 'eCPM',         val: fmt.$(kpis.cpm) },
+      ].map(s => `
+        <div class="mini-stat">
+          <div class="mini-stat-lbl">${s.lbl}</div>
+          <div class="mini-stat-val">${s.val}</div>
+        </div>`).join('');
+
+      // ── Top Regions list
+      const maxR = topRegions[0]?.spend || 1;
+      document.getElementById('regionList').innerHTML = topRegions.map((r, i) => `
+        <div class="region-row">
+          <div class="region-meta">
+            <span class="region-name">${i+1}. ${r.label || 'Unknown'}</span>
+            <span class="region-val">${fmt.$(r.spend)}</span>
+          </div>
+          <div class="region-bar-bg">
+            <div class="region-bar-fill" style="width:${Math.round((r.spend/maxR)*100)}%"></div>
+          </div>
+        </div>`).join('');
+
+      // ── Scorecard grid
+      const totalSpend = kpis.spend || 1;
+      let gCount = 0, aCount = 0, rCount = 0;
+      document.getElementById('scorecardGrid').innerHTML = topCamps.map(c => {
+        const ctr  = c.imps   ? (c.clicks / c.imps) * 100 : 0;
+        const ecpm = c.imps   ? (c.spend / c.imps) * 1000 : 0;
+        const cvr  = c.clicks ? (c.conversions / c.clicks) * 100 : 0;
+        const ecpc = c.clicks ? c.spend / c.clicks : 0;
+        const share = (c.spend / totalSpend) * 100;
+
+        const ctrRag = rag(ctr,  0.3,  0.1);
+        const cpmRag = rag(ecpm, 12,   18, false);
+        const cvrRag = rag(cvr,  2,    0.5);
+        const cpcRag = rag(ecpc, 5,    12, false);
+
+        const overall = [ctrRag,cpmRag,cvrRag].includes('r') ? 'r'
+          : [ctrRag,cpmRag,cvrRag].includes('a') ? 'a' : 'g';
+        if (overall === 'g') gCount++; else if (overall === 'a') aCount++; else rCount++;
+        const statusLabel = { g:'On Track', a:'Watch', r:'Attention' }[overall];
+
+        return `
+          <div class="sc" data-rag="${overall}">
+            <div class="sc-top">
+              <div class="sc-name">${c.label}</div>
+              <div class="sc-status ${overall}">${statusLabel}</div>
+            </div>
+            <div class="sc-metrics">
+              <div>
+                <div class="sc-metric-lbl">Spend</div>
+                <div class="sc-metric-val">${fmt.$(c.spend)}</div>
+              </div>
+              <div>
+                <div class="sc-metric-lbl">Impressions</div>
+                <div class="sc-metric-val">${fmt.n(c.imps)}</div>
+              </div>
+              <div>
+                <div class="sc-metric-lbl">Clicks</div>
+                <div class="sc-metric-val">${fmt.n(c.clicks)}</div>
+              </div>
+              <div>
+                <div class="sc-metric-lbl">Conversions</div>
+                <div class="sc-metric-val">${fmt.n(c.conversions)}</div>
+              </div>
+              <div>
+                <div class="sc-metric-lbl">eCPM</div>
+                <div class="sc-metric-val">${fmt.$(ecpm)}</div>
+              </div>
+              <div>
+                <div class="sc-metric-lbl">eCPC</div>
+                <div class="sc-metric-val">${fmt.$(ecpc)}</div>
+              </div>
+            </div>
+            <div class="sc-divider"></div>
+            <div class="sc-tags">
+              <span class="rag-tag ${ctrRag}"><span class="rag-dot ${ctrRag}"></span>CTR ${fmt.pct(ctr,3)}</span>
+              <span class="rag-tag ${cpmRag}"><span class="rag-dot ${cpmRag}"></span>eCPM ${fmt.$(ecpm)}</span>
+              <span class="rag-tag ${cvrRag}"><span class="rag-dot ${cvrRag}"></span>CVR ${fmt.pct(cvr)}</span>
+              <span class="rag-tag ${cpcRag}"><span class="rag-dot ${cpcRag}"></span>eCPC ${fmt.$(ecpc)}</span>
+            </div>
+            <div class="sc-progress">
+              <div class="sc-prog-hd"><span>Spend share</span><span>${fmt.pct(share,1)}</span></div>
+              <div class="sc-prog-bar"><div class="sc-prog-fill" style="width:${Math.min(share*4,100)}%"></div></div>
+            </div>
+          </div>`;
+      }).join('');
+
+      // ── RAG tally
+      const total = gCount + aCount + rCount;
+      document.getElementById('tallyAll').textContent = total;
+      document.getElementById('tallyG').textContent   = gCount;
+      document.getElementById('tallyA').textContent   = aCount;
+      document.getElementById('tallyR').textContent   = rCount;
+      document.getElementById('tallyTrack').innerHTML = `
+        <div class="tally-seg" style="width:${(gCount/total*100).toFixed(1)}%;background:var(--g)"></div>
+        <div class="tally-seg" style="width:${(aCount/total*100).toFixed(1)}%;background:var(--a)"></div>
+        <div class="tally-seg" style="width:${(rCount/total*100).toFixed(1)}%;background:var(--r)"></div>`;
+
+      // ── Spend trend
+      (() => {
+        const root = am5.Root.new('spendTrend');
+        root.setThemes([am5themes_Animated.new(root)]);
+        const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout }));
+        const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+          baseInterval: { timeUnit: 'day', count: 1 },
+          renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+        }));
+        const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) }));
+        const s = chart.series.push(am5xy.ColumnSeries.new(root, { xAxis, yAxis, valueXField: 'date', valueYField: 'spend' }));
+        s.columns.template.setAll({ fill: am5.color(0x8b5cf6), stroke: am5.color(0x7c3aed), cornerRadiusTL: 3, cornerRadiusTR: 3 });
+        s.data.setAll(dates.map(d => ({ date: d.date.getTime(), spend: d.spend })));
+        chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+      })();
+
+      // ── CTR trend
+      (() => {
+        const root = am5.Root.new('ctrTrend');
+        root.setThemes([am5themes_Animated.new(root)]);
+        const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout }));
+        const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+          baseInterval: { timeUnit: 'day', count: 1 },
+          renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+        }));
+        const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) }));
+        const s = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+          xAxis, yAxis, valueXField: 'date', valueYField: 'ctr',
+          stroke: am5.color(0x7c3aed), fill: am5.color(0x7c3aed),
+        }));
+        s.fills.template.setAll({ visible: true, fillOpacity: 0.12 });
+        s.strokes.template.setAll({ strokeWidth: 2 });
+        s.data.setAll(dates.map(d => ({ date: d.date.getTime(), ctr: d.ctr })));
+        chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+      })();
+
+      // ── Dual-axis: Spend + Impressions
+      (() => {
+        const root = am5.Root.new('dualChart');
+        root.setThemes([am5themes_Animated.new(root)]);
+        const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout, panX: true, wheelX: 'panX' }));
+        const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+          baseInterval: { timeUnit: 'day', count: 1 },
+          renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+        }));
+        const ySpend = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) }));
+        const yImps  = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, { opposite: true }) }));
+
+        const spendS = chart.series.push(am5xy.ColumnSeries.new(root, {
+          name: 'Spend', xAxis, yAxis: ySpend, valueXField: 'date', valueYField: 'spend',
+        }));
+        spendS.columns.template.setAll({ fill: am5.color(0xede9fe), stroke: am5.color(0x7c3aed), cornerRadiusTL: 3, cornerRadiusTR: 3 });
+
+        const impsS = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+          name: 'Impressions', xAxis, yAxis: yImps, valueXField: 'date', valueYField: 'imps',
+          stroke: am5.color(0x7c3aed),
+        }));
+        impsS.strokes.template.setAll({ strokeWidth: 2.5 });
+        impsS.bullets.push(() => am5.Bullet.new(root, {
+          sprite: am5.Circle.new(root, { radius: 3, fill: am5.color(0x7c3aed), stroke: am5.color(0xffffff), strokeWidth: 1.5 }),
+        }));
+
+        const data = dates.map(d => ({ date: d.date.getTime(), spend: d.spend, imps: d.imps }));
+        spendS.data.setAll(data);
+        impsS.data.setAll(data);
+        chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+        chart.children.unshift(am5.Legend.new(root, { centerX: am5.percent(100), x: am5.percent(100) }))
+          .data.setAll([spendS, impsS]);
+      })();
+
+      // ── Conversions + CPA trend
+      (() => {
+        const root = am5.Root.new('convChart');
+        root.setThemes([am5themes_Animated.new(root)]);
+        const chart = root.container.children.push(am5xy.XYChart.new(root, { layout: root.verticalLayout }));
+        const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+          baseInterval: { timeUnit: 'day', count: 1 },
+          renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+        }));
+        const yConv = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) }));
+        const yCpa  = chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, { opposite: true }) }));
+
+        const convS = chart.series.push(am5xy.ColumnSeries.new(root, {
+          name: 'Conversions', xAxis, yAxis: yConv, valueXField: 'date', valueYField: 'conversions',
+        }));
+        convS.columns.template.setAll({ fill: am5.color(0xd8b4fe), stroke: am5.color(0x7c3aed), cornerRadiusTL: 3, cornerRadiusTR: 3 });
+
+        const cpaS = chart.series.push(am5xy.SmoothedXLineSeries.new(root, {
+          name: 'CPA', xAxis, yAxis: yCpa, valueXField: 'date', valueYField: 'cpa',
+          stroke: am5.color(0xdc2626),
+        }));
+        cpaS.strokes.template.setAll({ strokeWidth: 2, strokeDasharray: [4, 3] });
+
+        const data = dates.map(d => ({ date: d.date.getTime(), conversions: d.conversions, cpa: d.cpa }));
+        convS.data.setAll(data);
+        cpaS.data.setAll(data);
+        chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
+        chart.children.unshift(am5.Legend.new(root, { centerX: am5.percent(100), x: am5.percent(100) }))
+          .data.setAll([convS, cpaS]);
+      })();
+
+    })().catch(e => console.error(e));
+    </script>
+  </body>
+</html>
